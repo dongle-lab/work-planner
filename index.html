@@ -187,7 +187,7 @@ function progress(pid){const ts=S.tasks.filter(t=>t.project===pid);const d=ts.fi
 
 // ---------- storage ----------
 // 구글 드라이브 동기화: 구글 클라우드에서 발급받은 "웹 애플리케이션" OAuth 클라이언트 ID를 넣으세요.
-const CONFIG={GOOGLE_CLIENT_ID:""};
+const CONFIG={GOOGLE_CLIENT_ID:"489021812240-dc0sbrel96brnpt86vu95lpo25vg6mpm.apps.googleusercontent.com"};
 const inClaude=!!(window.claude&&window.claude.use);
 let db=null,me=null,mode="local";const dirty=new Set(),busy=new Set();let flushT=null;
 const ls={get:k=>{try{return localStorage.getItem(k)}catch(e){return null}},set:(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}},del:k=>{try{localStorage.removeItem(k)}catch(e){}}};

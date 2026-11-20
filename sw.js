@@ -1,5 +1,5 @@
 // 오프라인 실행용 서비스 워커. 앱을 수정해 다시 올릴 때는 VERSION 숫자를 올려 주세요.
-const VERSION = "wp2027-v1";
+const VERSION = "wp2027-v2";
 const ASSETS = ["./", "./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png", "./icon-maskable-512.png", "./apple-touch-icon.png"];
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(VERSION).then(c => c.addAll(ASSETS)));
