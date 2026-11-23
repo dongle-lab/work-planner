@@ -248,6 +248,15 @@ tr.click{cursor:pointer}tr.click:hover td{background:var(--soft)}
 .note{font-size:13px;color:var(--mute)}
 .dbox .row button{background:transparent;color:var(--acct);font-weight:700;min-height:34px;padding:4px 6px}
 .card.empty{padding:14px 16px}
+/* task editor (tap a task title) */
+.tbt{background:none;border:0;padding:0;min-height:0;font:inherit;font-weight:inherit;color:inherit;text-align:start;white-space:normal;display:inline;cursor:pointer;border-radius:3px}
+.tbt:hover{color:var(--acct);text-decoration:underline;text-underline-offset:3px}
+.done .tbt{text-decoration:line-through;color:var(--mute)}
+.list li.on{border-bottom-color:transparent}
+.list li.tedit{display:block;padding:0 0 12px}
+.te{display:grid;gap:0 14px;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));background:var(--soft);border-radius:8px;padding:2px 12px 10px}
+.te-w{grid-column:1/-1}
+.te .lbl{margin-top:8px}
 </style>
 <script>new MutationObserver(()=>{for(const c of document.querySelectorAll('.stack td:not([data-l])')){let i=0,p=c;while(p=p.previousElementSibling)i+=p.colSpan;c.dataset.l=c.closest('table').rows[0].cells[i]?.textContent||''}}).observe(document,{childList:true,subtree:true})</script>
 </head>
@@ -390,12 +399,22 @@ async function boot(){
 
 // ---------- tasks ----------
 function newTask(o){const t={id:uid(),title:"",status:"todo",due:"",prio:"mid",project:"",meeting:"",request:"",owner:"",doneAt:"",created:today(),...o};S.tasks.push(t);save("tasks");return t}
-function setStatus(t,s){t.status=s;t.doneAt=s==="done"?(t.doneAt||today()):"";save("tasks")}
+function setStatus(t,s){t.status=s;t.doneAt=s==="done"?(t.doneAt||today()):"";save("tasks");
+ if(s==="done"&&t.request){const r=byId("requests",t.request);if(r&&r.status!=="done"){r.status="done";save("requests")}}}
+let openTask=null;
+function taskEditor(t){const k=`tasks|${t.id}`;
+ return`<li class="tedit"><div class="te">
+ <div class="te-w"><label class="lbl" for="tt-${t.id}">할 일</label><input id="tt-${t.id}" data-k="${k}|title" data-rr value="${esc(t.title)}"></div>
+ <div><label class="lbl" for="tp-${t.id}">프로젝트</label><select id="tp-${t.id}" data-k="${k}|project">${projOpts(t.project)}</select></div>
+ <div><label class="lbl" for="ts-${t.id}">상태</label><select id="ts-${t.id}" data-tstatus="${t.id}">${opts(ST,t.status)}</select></div>
+ <div><label class="lbl" for="td-${t.id}">마감일</label><input id="td-${t.id}" type="date" data-k="${k}|due" data-rr value="${esc(t.due)}"></div>
+ <div><label class="lbl" for="to-${t.id}">담당자</label><input id="to-${t.id}" data-k="${k}|owner" data-rr value="${esc(t.owner)}" placeholder="나 / 이름"></div>
+ </div><div class="row" style="justify-content:flex-end;margin-top:8px"><button class="tl" data-act="tedit" data-id="${t.id}">닫기</button></div></li>`}
 function taskLi(t,opt={}){
- const p=t.project?byId("projects",t.project):null;
- return`<li class="${t.status==="done"?"done":""}"><input type="checkbox" data-act="tgl" data-id="${t.id}" ${t.status==="done"?"checked":""} aria-label="완료">
- <span class="t">${esc(t.title||"(제목 없음)")}${t.owner?` <span class="pill">${esc(t.owner)}</span>`:""}${p&&!opt.noProj?` <a class="pill p-teal" href="#project-${p.id}">${esc(p.name)}</a>`:""}</span>
- ${opt.noDue?"":dueBadge(t.due,t.status==="done")}<button class="ghost" data-act="deltask" data-id="${t.id}" aria-label="삭제">✕</button></li>`}
+ const p=t.project?byId("projects",t.project):null,open=openTask===t.id;
+ return`<li class="${t.status==="done"?"done":""}${open?" on":""}"><input type="checkbox" data-act="tgl" data-id="${t.id}" ${t.status==="done"?"checked":""} aria-label="완료">
+ <span class="t"><button class="tbt" data-act="tedit" data-id="${t.id}" aria-expanded="${open}" title="눌러서 수정 · 프로젝트 지정">${esc(t.title||"(제목 없음)")}</button>${t.status==="doing"?' <span class="pill p-amber">진행 중</span>':""}${t.owner?` <span class="pill">${esc(t.owner)}</span>`:""}${p&&!opt.noProj?` <a class="pill p-teal" href="#project-${p.id}">${esc(p.name)}</a>`:""}</span>
+ ${opt.noDue?"":dueBadge(t.due,t.status==="done")}<button class="ghost" data-act="deltask" data-id="${t.id}" aria-label="삭제">✕</button></li>${open?taskEditor(t):""}`}
 const addTaskRow=(attrs,ph="할 일 추가 후 Enter")=>`<div class="row" style="margin-top:8px"><input data-addtask ${attrs} placeholder="${ph}"><button data-act="addtask" ${attrs}>추가</button></div>`;
 
 // ---------- views ----------
@@ -501,7 +520,7 @@ V.project=id=>{const p=byId("projects",id);if(!p)return V.projects();const g=pro
   <div class="card grid g2" style="gap:0 14px"><div><label class="lbl" for="pn">프로젝트명</label><input id="pn" data-k="${k}|name" data-rr value="${esc(p.name)}"></div><div><label class="lbl" for="pc">고객 · 요청부서</label><input id="pc" data-k="${k}|client" value="${esc(p.client)}"></div>
   <div><label class="lbl" for="ps">시작</label><input id="ps" type="date" data-k="${k}|start" value="${esc(p.start)}"></div><div><label class="lbl" for="pe">종료</label><input id="pe" type="date" data-k="${k}|end" value="${esc(p.end)}"></div>
   <div><label class="lbl" for="pst">상태</label><select id="pst" data-k="${k}|status">${opts(PST,p.status)}</select></div><div><label class="lbl">진행률 (할 일 기준 자동)</label><div class="row" style="min-height:42px"><div class="bar" style="flex:1"><i style="width:${g.p}%"></i></div><span class="num">${g.p}%</span></div></div></div>
-  <div class="card"><h2>할 일 <span class="pill num">${g.d}/${g.n}</span></h2>${ts.length?`<ul class="list">${ts.map(t=>taskLi(t,{noProj:true})).join("")}</ul>`:'<p class="empty">할 일을 추가하면 진행률이 올라가요.</p>'}${addTaskRow(`data-project="${id}"`)}</div>
+  <div class="card"><h2>할 일 <span class="pill num">${g.d}/${g.n}</span></h2>${ts.length?`<ul class="list">${ts.map(t=>taskLi(t,{noProj:true})).join("")}</ul>`:'<p class="empty">여기서 할 일을 추가하거나, 다른 화면의 할 일 제목을 눌러 이 프로젝트를 지정하세요.</p>'}${addTaskRow(`data-project="${id}"`)}</div>
   <div class="card"><label class="lbl" for="pg" style="margin-top:0">목표 · 범위</label><textarea id="pg" data-k="${k}|goal">${esc(p.goal)}</textarea><label class="lbl" for="pl">진행 기록</label><textarea id="pl" data-k="${k}|log" placeholder="11/20 제안서 초안 공유">${esc(p.log)}</textarea></div>
  </div><div class="grid">
   <div class="card"><h2>마일스톤</h2><ul class="list">${(p.miles||[]).map((m,i)=>`<li><input type="checkbox" data-k="${k}|miles.${i}.done" ${m.done?"checked":""} aria-label="완료"><input data-k="${k}|miles.${i}.t" value="${esc(m.t)}" placeholder="단계 · 산출물"><input type="date" data-k="${k}|miles.${i}.d" value="${esc(m.d)}" style="width:170px" aria-label="목표일"><button class="ghost" data-act="delrow" data-c="projects" data-id="${id}" data-f="miles" data-i="${i}" aria-label="삭제">✕</button></li>`).join("")}</ul><button data-act="addrow" data-c="projects" data-id="${id}" data-f="miles">+ 마일스톤</button></div>
@@ -686,7 +705,9 @@ document.addEventListener("input",e=>{const el=e.target;
  if(el.type==="range"&&el.nextElementSibling)el.nextElementSibling.textContent=el.value+"%"});
 function memoSearch(el){memoQ=el.value;const pos=el.selectionStart;rerender();const q=$("#mq");q.focus();q.setSelectionRange(pos,pos)}
 document.addEventListener("compositionend",e=>{if(e.target.id==="mq")memoSearch(e.target)});
-document.addEventListener("change",e=>{const el=e.target;if(!el.dataset.k)return;bind(el);
+document.addEventListener("change",e=>{const el=e.target;
+ if(el.dataset.tstatus){const t=byId("tasks",el.dataset.tstatus);if(t){setStatus(t,el.value);route.same=true;rerender()}return}
+ if(!el.dataset.k)return;bind(el);
  if(el.type==="checkbox"||el.tagName==="SELECT"||"rr"in el.dataset)rerender()});
 document.addEventListener("keydown",e=>{if(e.key==="Enter"&&e.target.matches("[data-addtask]")&&!e.isComposing){e.preventDefault();addFrom(e.target)}});
 function addFrom(inp){const v=inp.value.trim();if(!v)return;const d=inp.dataset;
@@ -700,7 +721,8 @@ document.addEventListener("click",async e=>{
  if(!e.target.closest("#skins,#skinbtn")){const m=$("#skins");if(m&&!m.hidden){m.hidden=true;$("#skinbtn").setAttribute("aria-expanded","false")}}
  const tr=e.target.closest("tr[data-go]");if(tr&&!e.target.closest("a,button,input,select")){location.hash=tr.dataset.go;return}
  const b=e.target.closest("[data-act]");if(!b)return;const d=b.dataset,a=d.act;
- if(a==="tgl"){const t=byId("tasks",d.id);if(t){setStatus(t,b.checked?"done":"todo");if(t.request){const r=byId("requests",t.request);if(r&&b.checked){r.status="done";save("requests")}}rerender()}return}
+ if(a==="tgl"){const t=byId("tasks",d.id);if(t){setStatus(t,b.checked?"done":"todo");rerender()}return}
+ if(a==="tedit"){openTask=openTask===d.id?null:d.id;route.same=true;rerender();if(openTask){const f=document.getElementById("tp-"+d.id);if(f)f.focus()}return}
  if(a==="skinmenu"){const m=$("#skins");m.hidden=!m.hidden;b.setAttribute("aria-expanded",String(!m.hidden));return}
  if(a==="skin"){applySkin(d.v);ls.set("wp_skin",d.v);$("#skins").hidden=true;$("#skinbtn").setAttribute("aria-expanded","false");rerender();toast({navy:"네이비",sand:"샌드",dark:"다크"}[d.v]+" 테마로 바꿨어요");return}
  if(a==="sync"){syncNow(true);return}
