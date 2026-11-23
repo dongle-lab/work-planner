@@ -289,6 +289,37 @@ input[type=search]{font-size:17px}
 .donebox{margin-top:8px}
 .donebox summary{cursor:pointer;color:var(--acct);font-weight:700;font-size:14px;padding:6px 0;list-style-position:inside}
 .hb{display:flex;gap:8px;flex-wrap:wrap}
+/* project Gantt */
+.gt-card{margin-bottom:14px}
+.gt-top{flex-wrap:wrap;gap:8px 16px;margin-bottom:8px}
+.gt-top h2{flex:1 1 auto}
+.gt-nums{display:flex;gap:16px;font-size:14px}.gt-nums b{color:var(--acct);font-size:17px}
+.gt-legend{display:flex;align-items:center;gap:6px 14px;flex-wrap:wrap;margin:0 0 8px}
+.gt-legend .gt-seg{position:static;display:inline-block;width:22px;height:10px;margin-right:-8px}
+.gt-legend .gt-today{position:static;display:inline-block;width:2px;height:14px;margin-right:-8px}
+.gt-wrap{overflow-x:auto;border:1px solid var(--gridb);border-radius:6px;max-height:640px;overflow-y:auto}
+.gt{min-width:max-content;font-size:13px}
+.gt-row{display:flex;align-items:stretch;border-bottom:1px solid var(--gridb)}
+.gt-lab{position:sticky;left:0;z-index:2;background:var(--card);width:200px;flex:none;padding:5px 10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-right:1px solid var(--gridb);display:flex;align-items:center;gap:6px}
+.gt-track{position:relative;min-height:28px;flex:none;background-image:repeating-linear-gradient(to right,transparent 0,transparent calc(var(--w) - 1px),color-mix(in srgb,var(--gridb) 55%,transparent) calc(var(--w) - 1px),color-mix(in srgb,var(--gridb) 55%,transparent) var(--w))}
+.gt-seg{position:absolute;top:9px;height:11px;border-radius:3px;margin-left:1px}
+.gt-seg.done{background:var(--acc)}.gt-seg.todo{background:var(--faint)}.gt-seg.ph{background:linear-gradient(90deg,var(--acc),var(--faint))}
+.gt-today{position:absolute;top:0;bottom:0;width:2px;background:var(--sun);z-index:1}
+.gt-head{position:sticky;top:0;z-index:3;background:var(--tab)}
+.gt-head .gt-lab{background:var(--tab);font-weight:700;color:var(--head)}
+.gt-head .gt-track{background-image:none;min-height:26px}
+.gt-m{position:absolute;top:5px;font:600 11.5px Poppins,sans-serif;color:var(--head);padding-left:3px;border-left:1px solid var(--boxb);line-height:16px}
+.gt-m.y{color:var(--acct)}
+.gt-g>summary{list-style:none;cursor:pointer}.gt-g>summary::-webkit-details-marker{display:none}
+.gt-ph,.gt-ph .gt-lab{background:var(--soft)}.gt-ph .gt-lab{font-weight:700;color:var(--head)}
+.gt-ph .gt-lab::before{content:"▸";color:var(--acct);font-size:12px}.gt-g[open]>.gt-ph .gt-lab::before{content:"▾"}
+.gt-dot{width:8px;height:8px;border-radius:9px;flex:none;background:var(--faint)}
+.gt-dot.done{background:var(--acc)}.gt-dot.doing{background:var(--amber)}
+@media(max-width:600px){.gt-lab{width:128px;font-size:12px;padding:4px 6px}.gt-nums{width:100%}}
+.wsched{margin-bottom:14px}
+.ws-p+.ws-p{margin-top:8px;padding-top:8px;border-top:1px solid var(--gridb)}
+.ws-l{display:flex;flex-wrap:wrap;gap:6px 8px;margin-top:6px}
+.ws-i{display:inline-flex;align-items:center;gap:6px;background:var(--soft);border-radius:6px;padding:3px 9px;font-size:13px}
 </style>
 <script>new MutationObserver(()=>{for(const c of document.querySelectorAll('.stack td:not([data-l])')){let i=0,p=c;while(p=p.previousElementSibling)i+=p.colSpan;c.dataset.l=c.closest('table').rows[0].cells[i]?.textContent||''}}).observe(document,{childList:true,subtree:true})</script>
 </head>
@@ -439,6 +470,7 @@ function taskEditor(t){const k=`tasks|${t.id}`;
  return`<li class="tedit"><div class="te">
  <div class="te-w"><label class="lbl" for="tt-${t.id}">할 일</label><input id="tt-${t.id}" data-k="${k}|title" data-rr value="${esc(t.title)}"></div>
  <div><label class="lbl" for="tp-${t.id}">프로젝트</label><select id="tp-${t.id}" data-k="${k}|project">${projOpts(t.project)}</select></div>
+ ${(()=>{const pr=t.project&&byId("projects",t.project);return pr&&pr.sched&&pr.sched.length?`<div><label class="lbl" for="tk-${t.id}">관련 공정</label><select id="tk-${t.id}" data-k="${k}|sk"><option value="">— 없음 —</option>${pr.sched.map(x=>`<option value="${esc(x.k)}"${x.k===t.sk?" selected":""}>${esc(x.ph?x.ph+" · ":"")}${esc(x.item)}</option>`).join("")}</select></div>`:""})()}
  <div><label class="lbl" for="ts-${t.id}">상태</label><select id="ts-${t.id}" data-tstatus="${t.id}">${opts(ST,t.status)}</select></div>
  <div><label class="lbl" for="td-${t.id}">마감일</label><input id="td-${t.id}" type="date" data-k="${k}|due" data-rr value="${esc(t.due)}"></div>
  <div><label class="lbl" for="to-${t.id}">담당자</label><input id="to-${t.id}" data-k="${k}|owner" data-rr value="${esc(t.owner)}" placeholder="나 / 이름"></div>
@@ -446,7 +478,7 @@ function taskEditor(t){const k=`tasks|${t.id}`;
 function taskLi(t,opt={}){
  const p=t.project?byId("projects",t.project):null,open=openTask===t.id;
  return`<li class="${t.status==="done"?"done":""}${open?" on":""}"><input type="checkbox" data-act="tgl" data-id="${t.id}" ${t.status==="done"?"checked":""} aria-label="완료">
- <span class="t"><button class="tbt" data-act="tedit" data-id="${t.id}" aria-expanded="${open}" title="눌러서 수정 · 프로젝트 지정">${esc(t.title||"(제목 없음)")}</button>${t.status==="doing"?' <span class="pill p-amber">진행 중</span>':""}${t.owner?` <span class="pill">${esc(t.owner)}</span>`:""}${p&&!opt.noProj?` <a class="pill p-teal" href="#project-${p.id}">${esc(p.name)}</a>`:""}</span>
+ <span class="t"><button class="tbt" data-act="tedit" data-id="${t.id}" aria-expanded="${open}" title="눌러서 수정 · 프로젝트 지정">${esc(t.title||"(제목 없음)")}</button>${t.status==="doing"?' <span class="pill p-amber">진행 중</span>':""}${t.owner?` <span class="pill">${esc(t.owner)}</span>`:""}${p&&!opt.noProj?` <a class="pill p-teal" href="#project-${p.id}">${esc(p.name)}</a>`:""}${t.sk&&p&&p.sched?(()=>{const x=p.sched.find(x=>x.k===t.sk);return x?` <span class="pill">공정 · ${esc(x.item)}</span>`:""})():""}</span>
  ${opt.noDue?"":dueBadge(t.due,t.status==="done")}<button class="ghost" data-act="deltask" data-id="${t.id}" aria-label="삭제">✕</button></li>${open?taskEditor(t):""}`}
 const addTaskRow=(attrs,ph="할 일 추가 후 Enter")=>`<div class="row" style="margin-top:8px"><input data-addtask ${attrs} placeholder="${ph}"><button data-act="addtask" ${attrs}>추가</button></div>`;
 
@@ -544,15 +576,16 @@ V.week=(arg)=>{let ws=monday(arg?P(arg):new Date());const wsI=iso(ws),wl=wlabel(
 
 V.projects=()=>{const ps=S.projects;
  return`${secHead("projects",'<button data-act="ganttpick">공정표 불러오기</button><button class="pri" data-act="newproj">+ 새 프로젝트</button>')}
- ${ps.length?`<div class="grid g3">${ps.map(p=>{const g=progress(p.id);return`<a class="card" href="#project-${p.id}" style="text-decoration:none;color:inherit"><div class="row"><b style="flex:1">${esc(p.name||"이름 없는 프로젝트")}</b><span class="pill ${p.status==="doing"?"p-teal":""}">${PST[p.status]}</span></div>
- <p class="note" style="margin:4px 0 10px">${esc(p.client||"")} ${p.start?`<span class="num">${md(p.start)}–${md(p.end)}</span>`:""}</p><div class="row"><div class="bar" style="flex:1"><i style="width:${g.p}%"></i></div><span class="num">${g.p}%</span></div><p class="note" style="margin:6px 0 0">할 일 ${g.d}/${g.n} 완료${p.rate!==undefined&&p.rate!==""?` · <b class="albl">공정율 ${p.rate}%</b>${p.rateAt?` <span class="num">(${md(p.rateAt)})</span>`:""}`:""}</p></a>`}).join("")}</div>`:'<div class="card empty">프로젝트를 추가하면 연결된 할 일로 진행률이 자동 계산돼요.</div>'}`};
+ ${ps.length?`<div class="grid g3">${ps.map(p=>{const g0=progress(p.id),sp=schedProg(p),g=sp.n?sp:g0;return`<a class="card" href="#project-${p.id}" style="text-decoration:none;color:inherit"><div class="row"><b style="flex:1">${esc(p.name||"이름 없는 프로젝트")}</b><span class="pill ${p.status==="doing"?"p-teal":""}">${PST[p.status]}</span></div>
+ <p class="note" style="margin:4px 0 10px">${esc(p.client||"")} ${p.start?`<span class="num">${md(p.start)}–${md(p.end)}</span>`:""}</p><div class="row"><div class="bar" style="flex:1"><i style="width:${g.p}%"></i></div><span class="num">${g.p}%</span></div><p class="note" style="margin:6px 0 0">${sp.n?`공정 ${sp.d}/${sp.n} · 내 할 일 ${g0.d}/${g0.n}`:`할 일 ${g.d}/${g.n} 완료`}${p.rate!==undefined&&p.rate!==""?` · <b class="albl">공정율 ${p.rate}%</b>${p.rateAt?` <span class="num">(${md(p.rateAt)})</span>`:""}`:""}</p></a>`}).join("")}</div>`:'<div class="card empty">프로젝트를 추가하면 연결된 할 일로 진행률이 자동 계산돼요.</div>'}`};
 V.project=id=>{const p=byId("projects",id);if(!p)return V.projects();const g=progress(id),k=`projects|${id}`;
  const ts=S.tasks.filter(t=>t.project===id),ms=S.meetings.filter(m=>m.project===id);
- return`<div class="head"><div><div class="sub"><a class="link" href="#projects">← 프로젝트</a></div><h1>${esc(p.name||"이름 없는 프로젝트")}</h1></div><div class="tools"><button data-act="ganttpick" data-pid="${id}">공정표 불러오기</button><button class="danger" data-act="del" data-c="projects" data-id="${id}" data-back="projects">삭제</button></div></div>
+ return`<div class="head"><div><div class="sub"><a class="link" href="#projects">← 프로젝트</a></div><h1>${esc(p.name||"이름 없는 프로젝트")}</h1></div><div class="tools"><button class="danger" data-act="del" data-c="projects" data-id="${id}" data-back="projects">삭제</button></div></div>
+ ${schedCard(p)}
  <div class="spread"><div class="grid">
   <div class="card grid g2" style="gap:0 14px"><div><label class="lbl" for="pn">프로젝트명</label><input id="pn" data-k="${k}|name" data-rr value="${esc(p.name)}"></div><div><label class="lbl" for="pc">고객 · 요청부서</label><input id="pc" data-k="${k}|client" value="${esc(p.client)}"></div>
   <div><label class="lbl" for="ps">시작</label><input id="ps" type="date" data-k="${k}|start" value="${esc(p.start)}"></div><div><label class="lbl" for="pe">종료</label><input id="pe" type="date" data-k="${k}|end" value="${esc(p.end)}"></div>
-  <div><label class="lbl" for="pst">상태</label><select id="pst" data-k="${k}|status">${opts(PST,p.status)}</select></div><div><label class="lbl">진행률 (할 일 기준 자동)</label><div class="row" style="min-height:42px"><div class="bar" style="flex:1"><i style="width:${g.p}%"></i></div><span class="num">${g.p}%</span></div></div>
+  <div><label class="lbl" for="pst">상태</label><select id="pst" data-k="${k}|status">${opts(PST,p.status)}</select></div><div><label class="lbl">내 할 일 완료율</label><div class="row" style="min-height:42px"><div class="bar" style="flex:1"><i style="width:${g.p}%"></i></div><span class="num">${g.p}%</span></div></div>
   <div><label class="lbl" for="prt">공정율 (보고용 · 직접 입력)</label><div class="row"><input id="prt" type="number" min="0" max="100" data-num data-rr data-k="${k}|rate" value="${esc(p.rate??"")}" style="width:96px" placeholder="—"><span>%</span></div></div>
   <div><label class="lbl" for="prta">공정율 기준일</label><input id="prta" type="date" data-k="${k}|rateAt" value="${esc(p.rateAt||"")}"></div></div>
   <div class="card"><h2>할 일 <span class="pill num">${g.d}/${g.n}</span></h2>${ts.length?(()=>{const op=ts.filter(t=>t.status!=="done").sort((a,b)=>(a.due||"9").localeCompare(b.due||"9")),dn=ts.filter(t=>t.status==="done");
@@ -715,7 +748,8 @@ V.week=(arg)=>{let ws=monday(arg?P(arg):new Date());const wsI=iso(ws),wl=wlabel(
  const wend=`<div class="card dbox wend${[5,6].some(i=>iso(add(ws,i))===t)?" today-in":""}">${[5,6].map(i=>{const d=add(ws,i),s=iso(d);return`<div class="half">${dayHead(d,i,s)}<textarea data-k="weeks|${wsI}.days.${i}" aria-label="${DOW[i]}요일 메모" style="min-height:56px">${esc((W.days||{})[i])}</textarea>${tasksOf(s)}${addTaskRow(`data-due="${s}"`,"할 일 추가")}</div>`}).join("")}</div>`;
  return`<div class="head"><h1>${wl.y}년 ${wl.m}월 ${wl.n}주차</h1><span class="sub num">${wsI.replace(/-/g,".")} – ${pad(we.getMonth()+1)}.${pad(we.getDate())}</span>
  <div class="tools"><a class="btn tl" href="#week-${iso(add(ws,-7))}">‹ 이전 주</a><a class="btn tl" href="#week-${iso(monday(new Date()))}">이번 주</a><a class="btn tl" href="#week-${iso(add(ws,7))}">다음 주 ›</a></div></div>
- ${lateBox}<div class="wwrap"><div class="dboxes">${boxes}${wend}</div>
+ ${lateBox}${(()=>{const ws=weekSched(wsI,iso(we));if(!ws.length)return"";const by=[];ws.forEach(o=>{let g=by.find(g=>g.p===o.p);if(!g)by.push(g={p:o.p,l:[]});g.l.push(o.x)});
+  return`<div class="card wsched"><h2>이번 주 공정 <small>참고용 · 할 일 계산에는 들어가지 않아요</small></h2>${by.map(g=>`<div class="ws-p"><a class="link" href="#project-${g.p.id}">${esc(g.p.name)}</a><div class="ws-l">${g.l.slice(0,12).map(x=>`<span class="ws-i"><i class="gt-dot ${x.st}"></i>${esc(x.ph?x.ph+" · ":"")}${esc(x.item)} <span class="note num">~${md(x.e)}</span></span>`).join("")}${g.l.length>12?`<span class="note">외 ${g.l.length-12}개</span>`:""}</div></div>`).join("")}</div>`})()}<div class="wwrap"><div class="dboxes">${boxes}${wend}</div>
  <div class="grid" style="align-content:start"><div class="card"><h2>이번 주 Top 3</h2>${[0,1,2].map(i=>`<div class="row top3"><span class="num">${i+1}</span><input data-k="weeks|${wsI}.top.${i}" value="${esc((W.top||[])[i])}" aria-label="Top ${i+1}"></div>`).join("")}</div>
  <div class="report" id="report" aria-label="주간 보고"><header><b>주간 보고</b><span>금요일에 정리 → 그대로 보고서로</span><button class="pri" style="margin-left:auto" data-act="copyrep" data-ws="${wsI}">보고서 복사</button></header>
   <section><h4>완료한 일 <span class="pill num">${r.done.length}</span></h4>${r.done.length?`<ul>${r.done.map(x=>`<li>${esc(x.title)}</li>`).join("")}</ul>`:'<p class="empty">이번 주에 완료한 일이 자동으로 모여요.</p>'}</section>
@@ -877,7 +911,8 @@ function impEval(){const RK={todo:0,doing:1,done:2};
  return imp.g.items.map(it=>{const cats=it.bars.map(b=>imp.g.map[b.f]).filter(c=>c&&c!=="skip");
   let st=!cats.length?(it.bars.length?null:imp.g.nobar):cats.every(c=>c==="done")?"done":cats.includes("done")?"doing":"todo";
   if(st==="skip")st=null;const bs=it.bars.filter(b=>imp.g.map[b.f]!=="skip");
-  return{...it,st,s:bs.length?bs[0].s:"",e:bs.length?bs[bs.length-1].e:"",key:`g:${phShort(it.ph)}|${it.item}`}}).filter(x=>x.st)
+  const seg=[];bs.forEach(b=>{const c=imp.g.map[b.f],l=seg[seg.length-1];if(l&&l.c===c&&iso(add(P(l.e),1))>=b.s)l.e=b.e>l.e?b.e:l.e;else seg.push({s:b.s,e:b.e,c})});
+  return{...it,st,seg,s:bs.length?bs[0].s:"",e:bs.length?bs[bs.length-1].e:"",key:`g:${phShort(it.ph)}|${it.item}`}}).filter(x=>x.st)
  .map((x,i,a)=>{const n=a.slice(0,i).filter(y=>y.key===x.key).length;return n?{...x,key:x.key+"#"+(n+1)}:x})}
 V.import=()=>{if(!imp)return V.projects();const G=imp.g,ev=impEval(),done=ev.filter(x=>x.st==="done").length,ST2={done:"완료",doing:"진행 중",todo:"예정"};
  const groups=[];ev.forEach(x=>{const g=groups.find(g=>g.ph===x.ph);g?g.list.push(x):groups.push({ph:x.ph,list:[x]})});
@@ -892,23 +927,20 @@ V.import=()=>{if(!imp)return V.projects();const G=imp.g,ev=impEval(),done=ev.fil
  </div><div class="grid" style="align-content:start">
   <div class="card"><h2>색 구분</h2><p class="note" style="margin-top:0">막대 색이 무엇을 뜻하는지 골라 주세요.</p>${Object.entries(G.colors).sort((a,b)=>b[1]-a[1]).map(([h,n],i)=>`<div class="row" style="margin:8px 0"><span class="sw" style="background:${h.startsWith("IDX")?"repeating-linear-gradient(45deg,#ccc 0 4px,#eee 4px 8px)":"#"+h}"></span><span class="num note" style="width:64px">${n}칸</span><select data-impc="${h}" aria-label="${h} 색의 의미">${opts({done:"완료한 일정",todo:"남은 일정",skip:"무시"},G.map[h])}</select></div>`).join("")}
    <label class="lbl" for="imb">막대가 없는 항목</label><select id="imb">${opts({done:"이미 끝난 일로 보기",todo:"할 일로 넣기",skip:"가져오지 않기"},G.nobar)}</select></div>
-  <div class="card"><h2>반영 결과 미리보기</h2><p style="margin:0">항목 <b class="num">${ev.length}</b>개 → 할 일, 단계 <b class="num">${groups.length}</b>개 → 마일스톤</p>
-   <div class="row" style="margin-top:10px"><div class="bar" style="flex:1"><i style="width:${ev.length?Math.round(done/ev.length*100):0}%"></i></div><span class="num">${ev.length?Math.round(done/ev.length*100):0}%</span></div><p class="note" style="margin:6px 0 0">할 일 기준 진행률${G.rate!==""?` · 공정표 공정율 ${G.rate}%`:""}</p>
-   ${imp.target?`<p class="note">같은 항목은 새로 만들지 않고 날짜와 상태만 바꿔요. 플래너에서 먼저 완료한 일은 되돌리지 않아요.${(()=>{const ks=new Set(ev.map(x=>x.key)),n=S.tasks.filter(k=>k.project===imp.target&&k.gk&&!ks.has(k.gk)).length;return n?` 예전에 불러왔지만 이번 공정표에 없는 할 일 ${n}개는 지워요.`:""})()}</p>`:""}</div>
+  <div class="card"><h2>반영 결과 미리보기</h2><p style="margin:0">공정 항목 <b class="num">${ev.length}</b>개 · 단계 <b class="num">${groups.length}</b>개를 프로젝트 공정표로 넣어요. 내 할 일 목록에는 들어가지 않아요.</p>
+   <div class="row" style="margin-top:10px"><div class="bar" style="flex:1"><i style="width:${ev.length?Math.round(done/ev.length*100):0}%"></i></div><span class="num">${ev.length?Math.round(done/ev.length*100):0}%</span></div><p class="note" style="margin:6px 0 0">공정 진행률 (완료 항목 기준)${G.rate!==""?` · 공정표 공정율 ${G.rate}%`:""}</p>
+   ${imp.target&&(byId("projects",imp.target)||{}).sched?'<p class="note">이 프로젝트의 공정표를 이번 파일 내용으로 통째로 바꿔요. 내 할 일은 그대로 있어요.</p>':""}</div>
  </div></div>`};
-function impApply(){const ev=impEval(),t=today();let p=imp.target&&byId("projects",imp.target);const isNew=!p;
+function impApply(){const ev=impEval();let p=imp.target&&byId("projects",imp.target);const isNew=!p;
  if(!p){p={id:uid(),name:imp.name||"공정표 프로젝트",client:"",start:"",end:"",status:"doing",goal:"",log:"",miles:[],risks:[]};S.projects.push(p)}
- const sp=ev.filter(x=>x.s);if(sp.length){p.start=p.start||sp.map(x=>x.s).sort()[0];p.end=sp.map(x=>x.e).sort().pop()}
+ const sp=ev.filter(x=>x.s);if(sp.length){p.start=sp.map(x=>x.s).sort()[0];p.end=sp.map(x=>x.e).sort().pop()}
  p.rate=imp.g.rate===""?(p.rate??""):+imp.g.rate;if(imp.g.asOf)p.rateAt=imp.g.asOf;
- const RK={todo:0,doing:1,done:2};let nAdd=0,upd=0;
- ev.forEach(x=>{const title=`${phShort(x.ph)?phShort(x.ph)+" · ":""}${x.item}`;let tk=S.tasks.find(k=>k.project===p.id&&k.gk===x.key);
-  if(!tk){tk={id:uid(),title,status:"todo",due:x.e||"",prio:"mid",project:p.id,meeting:"",request:"",owner:"",doneAt:"",created:t,gk:x.key};S.tasks.push(tk);nAdd++}else upd++;
-  if(x.e)tk.due=x.e;if(RK[x.st]>RK[tk.status]){tk.status=x.st;tk.doneAt=x.st==="done"?(tk.doneAt||x.e||t):""}});
- const keys=new Set(ev.map(x=>x.key)),before=S.tasks.length;S.tasks=S.tasks.filter(k=>!(k.project===p.id&&k.gk&&!keys.has(k.gk)));const nDel=before-S.tasks.length;
- const phs=[];ev.forEach(x=>{const k=phShort(x.ph);if(!k)return;let g=phs.find(g=>g.k===k);if(!g)phs.push(g={k,list:[]});g.list.push(x)});
- p.miles=(p.miles||[]).filter(m=>m.src!=="gantt").concat(phs.map(g=>({t:g.k,d:g.list.map(x=>x.e).filter(Boolean).sort().pop()||"",done:g.list.every(x=>x.st==="done"),src:"gantt"})));
+ p.sched=ev.map(x=>({k:x.key,ph:phShort(x.ph),item:x.item,s:x.s,e:x.e,st:x.st,seg:x.seg}));p.schedFile=imp.file;p.schedAt=imp.g.asOf||today();
+ p.miles=(p.miles||[]).filter(m=>m.src!=="gantt");                                     // phases now live in the Gantt view
+ const before=S.tasks.length;S.tasks=S.tasks.filter(k=>!(k.project===p.id&&k.gk));const moved=before-S.tasks.length;  // old import style → schedule
+ const keys=new Set(p.sched.map(x=>x.k));S.tasks.forEach(t=>{if(t.project===p.id&&t.sk&&!keys.has(t.sk))t.sk=""});
  save("projects");save("tasks");const id=p.id;imp=null;
- toast(isNew?`프로젝트를 만들고 할 일 ${nAdd}개를 넣었어요`:`할 일 ${upd}개 업데이트, ${nAdd}개 추가${nDel?`, 공정표에 없는 ${nDel}개 정리`:""}했어요`);location.hash="project-"+id}
+ toast(`공정 항목 ${p.sched.length}개를 ${isNew?"새 프로젝트에 넣었어요":"최신 공정표로 바꿨어요"}${moved?` (예전 방식 공정 할 일 ${moved}개 정리)`:""}`);location.hash="project-"+id}
 function ganttPick(pid){const inp=document.createElement("input");inp.type="file";inp.accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
  inp.onchange=async()=>{const f=inp.files[0];if(!f)return;if(!/\.xlsx$/i.test(f.name)){toast("엑셀 .xlsx 파일만 읽을 수 있어요 (.xls는 엑셀에서 .xlsx로 저장해 주세요)");return}
   try{const g=parseGantt(await readXlsx(f));const name=g.title||f.name.replace(/\.xlsx$/i,"");
@@ -927,6 +959,36 @@ document.addEventListener("change",e=>{const el=e.target;if(!imp)return;
  if(el.id==="imr"){imp.g.rate=el.value===""?"":+el.value;rerender()}});
 document.addEventListener("input",e=>{if(imp&&e.target.id==="imn")imp.name=e.target.value});
 
+// ---------- 프로젝트 공정표 (막대) ----------
+const schedProg=p=>{const a=p.sched||[],d=a.filter(x=>x.st==="done").length;return{d,n:a.length,p:a.length?Math.round(d/a.length*100):0}};
+function schedCard(p){const a=p.sched||[];
+ if(!a.length)return`<div class="card gt-empty"><h2>공정표</h2><p class="empty" style="margin:0">엑셀 공정표를 불러오면 여기에 주 단위 막대 공정표가 생겨요. 내 할 일과는 따로 관리돼요.</p><button data-act="ganttpick" data-pid="${p.id}" style="margin-top:10px">공정표 불러오기</button></div>`;
+ const W=window.innerWidth<600?11:15,ds=a.flatMap(x=>x.seg.flatMap(g=>[g.s,g.e])).filter(Boolean).sort();
+ const base=monday(P(ds[0])),endD=P(ds[ds.length-1]),wi=d=>Math.round((+monday(P(d))-+base)/6048e5),nW=wi(iso(endD))+1,tw=nW*W;
+ const x0=d=>(+P(d)-+base)/864e5/7*W,t=today(),tx=t>=iso(base)&&t<=iso(endD)?x0(t):-1;
+ let months="";for(let d=new Date(base.getFullYear(),base.getMonth()+1,1);d<=endD;d=new Date(d.getFullYear(),d.getMonth()+1,1)){const m=d.getMonth()+1;months+=`<span class="gt-m${m===1?" y":""}" style="left:${x0(iso(d))}px">${m===1?"'"+String(d.getFullYear()).slice(2)+".":""}${pad(m)}</span>`}
+ const track=(segs,cls="")=>`<div class="gt-track ${cls}" style="width:${tw}px">${segs.map(g=>`<i class="gt-seg ${g.c}" style="left:${wi(g.s)*W}px;width:${(wi(g.e)-wi(g.s)+1)*W-2}px" title="${md(g.s)}–${md(g.e)}"></i>`).join("")}${tx>=0?`<b class="gt-today" style="left:${tx}px"></b>`:""}</div>`;
+ const groups=[];a.forEach(x=>{let g=groups.find(g=>g.ph===x.ph);if(!g)groups.push(g={ph:x.ph,list:[]});g.list.push(x)});
+ const g=schedProg(p),STN={done:"완료",doing:"진행 중",todo:"예정"};
+ return`<div class="card gt-card"><div class="row gt-top"><h2 style="margin:0">공정표 <small>${esc(p.schedFile||"")} · 기준 ${md(p.schedAt||"")}</small></h2>
+  <div class="gt-nums"><span>공정 진행률 <b class="num">${g.p}%</b> <span class="note num">(${g.d}/${g.n})</span></span>${p.rate!==undefined&&p.rate!==""?`<span>공정율 <b class="num">${p.rate}%</b></span>`:""}</div>
+  <button data-act="ganttpick" data-pid="${p.id}">새 공정표 불러오기</button></div>
+ <div class="gt-legend note"><i class="gt-seg done"></i>완료한 일정 <i class="gt-seg todo"></i>남은 일정 <b class="gt-today"></b>오늘</div>
+ <div class="gt-wrap" data-pid="${p.id}"><div class="gt" style="--w:${W}px">
+  <div class="gt-row gt-head"><div class="gt-lab">항목</div><div class="gt-track" style="width:${tw}px">${months}${tx>=0?`<b class="gt-today" style="left:${tx}px"></b>`:""}</div></div>
+  ${groups.map(gr=>{const dn=gr.list.filter(x=>x.st==="done").length,all=gr.list.every(x=>x.st==="done");
+   const ps=gr.list.flatMap(x=>x.seg),span=ps.length?[{s:ps.map(q=>q.s).sort()[0],e:ps.map(q=>q.e).sort().pop(),c:all?"done":gr.list.some(x=>x.st!=="todo")?"ph":"todo"}]:[];
+   return`<details class="gt-g"${all?"":" open"}><summary class="gt-row gt-ph"><div class="gt-lab">${esc(gr.ph||"항목")} <span class="num note">${dn}/${gr.list.length}</span></div>${track(span)}</summary>
+   ${gr.list.map(x=>`<div class="gt-row"><div class="gt-lab" title="${esc(x.item)} · ${STN[x.st]}"><i class="gt-dot ${x.st}"></i>${esc(x.item)}</div>${track(x.seg)}</div>`).join("")}</details>`}).join("")}
+ </div></div></div>`}
+function weekSched(wsI,weI){const out=[];S.projects.forEach(p=>(p.sched||[]).forEach(x=>{if(x.st==="done")return;if(x.seg.some(g=>g.s<=weI&&g.e>=wsI))out.push({p,x})}));return out}
+
+// open the Gantt around today, and keep the user's scroll position across re-renders
+const gtPos={};
+document.addEventListener("scroll",e=>{const w=e.target;if(w.classList&&w.classList.contains("gt-wrap"))gtPos[w.dataset.pid]=w.scrollLeft},true);
+function gtScroll(){document.querySelectorAll(".gt-wrap").forEach(w=>{const id=w.dataset.pid;if(gtPos[id]!=null){w.scrollLeft=gtPos[id];return}
+ const t=w.querySelector(".gt-head .gt-today"),lab=w.querySelector(".gt-lab");if(t)w.scrollLeft=Math.max(0,parseFloat(t.style.left)-(w.clientWidth-(lab?lab.offsetWidth:0))*0.65)})}
+
 // ---------- router ----------
 function route(){if(!route.rb){buildRail();route.rb=1}genRepeats();const h=(location.hash||"#home").slice(1);let [sec,...rest]=h.split("-");const arg=rest.join("-");
  const map={project:"projects",meeting:"meetings",trip:"trips",memo:"memos",goals:"year",import:"projects"};const navSec=map[sec]||sec;
@@ -934,7 +996,7 @@ function route(){if(!route.rb){buildRail();route.rb=1}genRepeats();const h=(loca
  document.querySelectorAll("#nav a").forEach(a=>a.classList.toggle("on",a.dataset.s===(V[sec]?navSec:"home")));
  let ym="";if(sec==="month"){const t=new Date();ym=arg||t.getFullYear()+"-"+pad(t.getMonth()+1)}else if(sec==="week"){const th=add(monday(arg?P(arg):new Date()),3);ym=th.getFullYear()+"-"+pad(th.getMonth()+1)}
  document.querySelectorAll("#rail a").forEach(a=>a.classList.toggle("on",a.dataset.ym===ym));
- const y=scrollY;$("#app").innerHTML=fn(arg||undefined);if(route.same)scrollTo(0,y);route.same=false}
+ const y=scrollY;$("#app").innerHTML=fn(arg||undefined);if(route.same)scrollTo(0,y);route.same=false;gtScroll()}
 function rerender(){route.same=true;route()}
 addEventListener("hashchange",()=>{route();scrollTo(0,0)});
 
