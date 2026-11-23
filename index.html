@@ -863,8 +863,9 @@ function parseGantt(X){const{cells,merges}=X,rows=Object.keys(cells).map(Number)
  const title=all.find(t=>/공정표/.test(t))||"";
  const startRow=wRow||mRow,items=[];let colors={};
  rows.filter(r=>r>startRow).forEach(r=>{const labs=[];for(let c=1;c<c0;c++){const t=txt(r,c);if(t&&(!labs.length||labs[labs.length-1].t!==t))labs.push({c,t})}
-  if(!labs.length)return;const item=labs[labs.length-1].t;if(/공정\s*[율률]|진척|진도|^※/.test(item))return;
-  const ph=labs.length>1?labs[0].t:"";const bars=[];
+  if(!labs.length||labs.some(l=>/공정\s*[율률]\s*[:：]|^※/.test(l.t)))return;
+  const texty=labs.filter(l=>/[가-힣A-Za-z]/.test(l.t)&&!/^[\d\s.,%:()+\-]+$/.test(l.t));if(!texty.length)return;   // skip No./% columns
+  const itemL=texty[texty.length-1],item=itemL.t,phL=texty.find(l=>l.c<itemL.c),ph=phL?phL.t:"";const bars=[];
   Object.entries(cells[r]).forEach(([c,x])=>{const u=ucol[c];if(u&&x.f){bars.push({...u,f:x.f});colors[x.f]=(colors[x.f]||0)+1}});
   bars.sort((a,b)=>a.c-b.c);items.push({ph,item,bars})});
  if(!items.length)throw new Error("항목 줄을 찾지 못했어요");
@@ -876,7 +877,8 @@ function impEval(){const RK={todo:0,doing:1,done:2};
  return imp.g.items.map(it=>{const cats=it.bars.map(b=>imp.g.map[b.f]).filter(c=>c&&c!=="skip");
   let st=!cats.length?(it.bars.length?null:imp.g.nobar):cats.every(c=>c==="done")?"done":cats.includes("done")?"doing":"todo";
   if(st==="skip")st=null;const bs=it.bars.filter(b=>imp.g.map[b.f]!=="skip");
-  return{...it,st,s:bs.length?bs[0].s:"",e:bs.length?bs[bs.length-1].e:"",key:`g:${phShort(it.ph)}|${it.item}`}}).filter(x=>x.st)}
+  return{...it,st,s:bs.length?bs[0].s:"",e:bs.length?bs[bs.length-1].e:"",key:`g:${phShort(it.ph)}|${it.item}`}}).filter(x=>x.st)
+ .map((x,i,a)=>{const n=a.slice(0,i).filter(y=>y.key===x.key).length;return n?{...x,key:x.key+"#"+(n+1)}:x})}
 V.import=()=>{if(!imp)return V.projects();const G=imp.g,ev=impEval(),done=ev.filter(x=>x.st==="done").length,ST2={done:"완료",doing:"진행 중",todo:"예정"};
  const groups=[];ev.forEach(x=>{const g=groups.find(g=>g.ph===x.ph);g?g.list.push(x):groups.push({ph:x.ph,list:[x]})});
  const span=ev.filter(x=>x.s),s0=span.map(x=>x.s).sort()[0],e0=span.map(x=>x.e).sort().pop();
@@ -892,7 +894,7 @@ V.import=()=>{if(!imp)return V.projects();const G=imp.g,ev=impEval(),done=ev.fil
    <label class="lbl" for="imb">막대가 없는 항목</label><select id="imb">${opts({done:"이미 끝난 일로 보기",todo:"할 일로 넣기",skip:"가져오지 않기"},G.nobar)}</select></div>
   <div class="card"><h2>반영 결과 미리보기</h2><p style="margin:0">항목 <b class="num">${ev.length}</b>개 → 할 일, 단계 <b class="num">${groups.length}</b>개 → 마일스톤</p>
    <div class="row" style="margin-top:10px"><div class="bar" style="flex:1"><i style="width:${ev.length?Math.round(done/ev.length*100):0}%"></i></div><span class="num">${ev.length?Math.round(done/ev.length*100):0}%</span></div><p class="note" style="margin:6px 0 0">할 일 기준 진행률${G.rate!==""?` · 공정표 공정율 ${G.rate}%`:""}</p>
-   ${imp.target?'<p class="note">같은 항목은 새로 만들지 않고 날짜와 상태만 바꿔요. 플래너에서 먼저 완료한 일은 되돌리지 않아요.</p>':""}</div>
+   ${imp.target?`<p class="note">같은 항목은 새로 만들지 않고 날짜와 상태만 바꿔요. 플래너에서 먼저 완료한 일은 되돌리지 않아요.${(()=>{const ks=new Set(ev.map(x=>x.key)),n=S.tasks.filter(k=>k.project===imp.target&&k.gk&&!ks.has(k.gk)).length;return n?` 예전에 불러왔지만 이번 공정표에 없는 할 일 ${n}개는 지워요.`:""})()}</p>`:""}</div>
  </div></div>`};
 function impApply(){const ev=impEval(),t=today();let p=imp.target&&byId("projects",imp.target);const isNew=!p;
  if(!p){p={id:uid(),name:imp.name||"공정표 프로젝트",client:"",start:"",end:"",status:"doing",goal:"",log:"",miles:[],risks:[]};S.projects.push(p)}
@@ -902,10 +904,11 @@ function impApply(){const ev=impEval(),t=today();let p=imp.target&&byId("project
  ev.forEach(x=>{const title=`${phShort(x.ph)?phShort(x.ph)+" · ":""}${x.item}`;let tk=S.tasks.find(k=>k.project===p.id&&k.gk===x.key);
   if(!tk){tk={id:uid(),title,status:"todo",due:x.e||"",prio:"mid",project:p.id,meeting:"",request:"",owner:"",doneAt:"",created:t,gk:x.key};S.tasks.push(tk);nAdd++}else upd++;
   if(x.e)tk.due=x.e;if(RK[x.st]>RK[tk.status]){tk.status=x.st;tk.doneAt=x.st==="done"?(tk.doneAt||x.e||t):""}});
+ const keys=new Set(ev.map(x=>x.key)),before=S.tasks.length;S.tasks=S.tasks.filter(k=>!(k.project===p.id&&k.gk&&!keys.has(k.gk)));const nDel=before-S.tasks.length;
  const phs=[];ev.forEach(x=>{const k=phShort(x.ph);if(!k)return;let g=phs.find(g=>g.k===k);if(!g)phs.push(g={k,list:[]});g.list.push(x)});
  p.miles=(p.miles||[]).filter(m=>m.src!=="gantt").concat(phs.map(g=>({t:g.k,d:g.list.map(x=>x.e).filter(Boolean).sort().pop()||"",done:g.list.every(x=>x.st==="done"),src:"gantt"})));
  save("projects");save("tasks");const id=p.id;imp=null;
- toast(isNew?`프로젝트를 만들고 할 일 ${nAdd}개를 넣었어요`:`할 일 ${upd}개를 업데이트하고 ${nAdd}개를 새로 넣었어요`);location.hash="project-"+id}
+ toast(isNew?`프로젝트를 만들고 할 일 ${nAdd}개를 넣었어요`:`할 일 ${upd}개 업데이트, ${nAdd}개 추가${nDel?`, 공정표에 없는 ${nDel}개 정리`:""}했어요`);location.hash="project-"+id}
 function ganttPick(pid){const inp=document.createElement("input");inp.type="file";inp.accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
  inp.onchange=async()=>{const f=inp.files[0];if(!f)return;if(!/\.xlsx$/i.test(f.name)){toast("엑셀 .xlsx 파일만 읽을 수 있어요 (.xls는 엑셀에서 .xlsx로 저장해 주세요)");return}
   try{const g=parseGantt(await readXlsx(f));const name=g.title||f.name.replace(/\.xlsx$/i,"");
