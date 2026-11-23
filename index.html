@@ -329,6 +329,7 @@ input[type=search]{font-size:17px}
 .trialcard{margin-bottom:14px;border-color:var(--acc)}
 #lickey{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px}
 @media(min-width:1280px){main{max-width:1316px;padding-right:calc(max(2.4vw,14px) + 76px)}}
+.renum{margin:-4px 0 12px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 </style>
 <script>new MutationObserver(()=>{for(const c of document.querySelectorAll('.stack td:not([data-l])')){let i=0,p=c;while(p=p.previousElementSibling)i+=p.colSpan;c.dataset.l=c.closest('table').rows[0].cells[i]?.textContent||''}}).observe(document,{childList:true,subtree:true})</script>
 </head>
@@ -379,6 +380,8 @@ function dueBadge(due,done){if(done)return'<span class="pill p-teal">완료</spa
 const byId=(c,id)=>S[c].find(x=>x.id===id);
 const opts=(map,v)=>Object.entries(map).map(([k,t])=>`<option value="${k}"${k===v?" selected":""}>${t}</option>`).join("");
 const projOpts=v=>`<option value="">— 없음 —</option>`+S.projects.map(p=>`<option value="${p.id}"${p.id===v?" selected":""}>${esc(p.name||"이름 없는 프로젝트")}</option>`).join("");
+const nextNo=a=>a.reduce((m,x)=>Math.max(m,+x.no||0),0)+1;
+const gapNote=c=>{const a=S[c],ns=a.map(x=>+x.no||0).sort((x,y)=>x-y);return a.length&&ns.some((n,i)=>n!==i+1)?`<p class="note renum">번호가 1번부터 이어지지 않아요 (지운 항목이 있었어요). <button class="tl" data-act="renum" data-c="${c}">번호 다시 매기기</button></p>`:""};
 function toast(t){const e=$("#toast");e.textContent=t;e.classList.add("on");clearTimeout(toast.h);toast.h=setTimeout(()=>e.classList.remove("on"),1800)}
 function progress(pid){const ts=S.tasks.filter(t=>t.project===pid);const d=ts.filter(t=>t.status==="done").length;return{d,n:ts.length,p:ts.length?Math.round(d/ts.length*100):0}}
 
@@ -610,7 +613,7 @@ V.project=id=>{const p=byId("projects",id);if(!p)return V.projects();const g=pro
 
 V.meetings=()=>{const ms=[...S.meetings].sort((a,b)=>b.no-a.no);
  return`${secHead("meetings",'<button class="pri" data-act="newmeet">+ 새 회의록</button>')}
- ${ms.length?`<div class="card scroll"><table class="stack"><thead><tr><th>No</th><th>날짜</th><th>회의명</th><th>프로젝트</th><th>액션 아이템</th></tr></thead><tbody>${ms.map(m=>{const a=S.tasks.filter(t=>t.meeting===m.id),ad=a.filter(t=>t.status==="done").length,p=m.project&&byId("projects",m.project);
+ ${gapNote("meetings")}${ms.length?`<div class="card scroll"><table class="stack"><thead><tr><th>No</th><th>날짜</th><th>회의명</th><th>프로젝트</th><th>액션 아이템</th></tr></thead><tbody>${ms.map(m=>{const a=S.tasks.filter(t=>t.meeting===m.id),ad=a.filter(t=>t.status==="done").length,p=m.project&&byId("projects",m.project);
  return`<tr class="click" data-go="meeting-${m.id}"><td class="n"><span class="nob num">${pad(m.no)}</span></td><td class="num n">${esc(m.date)}</td><td><a class="link" href="#meeting-${m.id}">${esc(m.title||"(제목 없음)")}</a></td><td>${p?esc(p.name):""}</td><td class="num">${a.length?ad+"/"+a.length:""}</td></tr>`}).join("")}</tbody></table></div>`:'<div class="card empty">새 회의록을 만들면 번호가 자동으로 붙고 이 목록에 쌓여요.</div>'}`};
 V.meeting=id=>{const m=byId("meetings",id);if(!m)return V.meetings();const k=`meetings|${id}`,acts=S.tasks.filter(t=>t.meeting===id);
  return`<div class="head"><span class="big num">${pad(m.no)}</span><div><div class="sub"><a class="link" href="#meetings">← 회의록 목록</a></div><h1>${esc(m.title||"새 회의")}</h1></div><div class="tools"><button class="danger" data-act="del" data-c="meetings" data-id="${id}" data-back="meetings">삭제</button></div></div>
@@ -628,7 +631,7 @@ V.meeting=id=>{const m=byId("meetings",id);if(!m)return V.meetings();const k=`me
 
 V.requests=()=>{const rs=[...S.requests].sort((a,b)=>(a.status==="done")-(b.status==="done")||(a.due||"9").localeCompare(b.due||"9"));
  return`${secHead("requests",'<button class="pri" data-act="newreq">+ 새 요청</button>')}
- ${rs.length?`<div class="card scroll"><table class="stack"><thead><tr><th>No</th><th>요청 내용</th><th>요청자 · 부서</th><th>요청일</th><th>기한</th><th>남은 기한</th><th>상태</th><th></th></tr></thead><tbody>${rs.map(r=>{const k=`requests|${r.id}`;
+ ${gapNote("requests")}${rs.length?`<div class="card scroll"><table class="stack"><thead><tr><th>No</th><th>요청 내용</th><th>요청자 · 부서</th><th>요청일</th><th>기한</th><th>남은 기한</th><th>상태</th><th></th></tr></thead><tbody>${rs.map(r=>{const k=`requests|${r.id}`;
  return`<tr><td class="n"><span class="nob num">${pad(r.no)}</span></td><td><input data-k="${k}|title" value="${esc(r.title)}" placeholder="요청 내용" aria-label="요청 내용"></td><td><input data-k="${k}|who" value="${esc(r.who)}" placeholder="김OO 과장 / 영업" aria-label="요청자"></td>
  <td><input type="date" data-k="${k}|date" value="${esc(r.date)}" aria-label="요청일"></td><td><input type="date" data-k="${k}|due" data-rr value="${esc(r.due)}" aria-label="기한"></td><td>${dueBadge(r.due,r.status==="done")}</td>
  <td><select data-k="${k}|status" data-rr aria-label="상태">${opts(RST,r.status)}</select></td><td class="n">${r.task?'<span class="pill p-teal">할 일 연결됨</span>':`<button data-act="req2task" data-id="${r.id}">할 일로</button>`} <button class="ghost" data-act="del" data-c="requests" data-id="${r.id}" aria-label="삭제">✕</button></td></tr>`}).join("")}</tbody></table></div>`:'<div class="card empty">받은 요청을 기록하면 남은 기한이 자동으로 계산돼요.</div>'}`};
@@ -1106,27 +1109,29 @@ document.addEventListener("click",async e=>{
  if(a==="addrow"){const it=byId(d.c,d.id);(it[d.f]=it[d.f]||[]).push(ROW[d.f]());save(d.c);rerender();return}
  if(a==="delrow"){const it=byId(d.c,d.id);it[d.f].splice(+d.i,1);save(d.c);rerender();return}
  if(a==="newproj"){const p={id:uid(),name:"새 프로젝트",client:"",start:today(),end:"",status:"plan",goal:"",log:"",miles:[],risks:[]};S.projects.push(p);save("projects");location.hash="project-"+p.id;return}
- if(a==="newmeet"){S.meta.mseq=(S.meta.mseq||0)+1;const m={id:uid(),no:S.meta.mseq,title:"",date:today(),time:"",people:"",place:"",project:"",agenda:"",notes:"",decisions:""};S.meetings.push(m);save("meetings");save("meta");location.hash="meeting-"+m.id;return}
- if(a==="newreq"){S.meta.rseq=(S.meta.rseq||0)+1;S.requests.push({id:uid(),no:S.meta.rseq,title:"",who:"",date:today(),due:"",status:"new",task:""});save("requests");save("meta");const nid=S.requests[S.requests.length-1].id;rerender();const f=document.querySelector(`[data-k="requests|${nid}|title"]`);if(f)f.focus();return}
+ if(a==="newmeet"){S.meta.mseq=nextNo(S.meetings);const m={id:uid(),no:S.meta.mseq,title:"",date:today(),time:"",people:"",place:"",project:"",agenda:"",notes:"",decisions:""};S.meetings.push(m);save("meetings");save("meta");location.hash="meeting-"+m.id;return}
+ if(a==="newreq"){S.meta.rseq=nextNo(S.requests);S.requests.push({id:uid(),no:S.meta.rseq,title:"",who:"",date:today(),due:"",status:"new",task:""});save("requests");save("meta");const nid=S.requests[S.requests.length-1].id;rerender();const f=document.querySelector(`[data-k="requests|${nid}|title"]`);if(f)f.focus();return}
  if(a==="req2task"){const r=byId("requests",d.id);const t=newTask({title:r.title||"업무 요청 처리",due:r.due,request:r.id,owner:""});r.task=t.id;if(r.status==="new")r.status="doing";save("requests");toast("할 일로 추가했어요");rerender();return}
  if(a==="newtrip"){const t={id:uid(),title:"",dest:"",start:"",end:"",purpose:"",with:"",plan:[],costs:[],check:CHECK.map(t=>({t,done:false})),summary:""};S.trips.push(t);save("trips");location.hash="trip-"+t.id;return}
  if(a==="newmemo"){const m={id:uid(),title:"",body:"",date:today()};S.memos.push(m);save("memos");memoSel=m.id;location.hash="memo-"+m.id;return}
  if(a==="copyrep"){const txt=reportText(P(d.ws));try{await navigator.clipboard.writeText(txt);toast("주간 보고를 복사했어요")}catch(err){const o=$("#repout");o.hidden=false;o.textContent=txt;toast("아래 내용을 길게 눌러 복사하세요")}return}
  if(a==="export"){const txt=JSON.stringify(S);const x=$("#exp");x.hidden=false;x.value=txt;try{await navigator.clipboard.writeText(txt);toast("복사했어요")}catch(err){x.select();toast("선택된 내용을 복사하세요")}return}
  if(a==="import"){try{const o=JSON.parse($("#imp").value);if(!o||!Array.isArray(o.tasks))throw 0;if(!arm(b))return;S={...blank(),...o};KEYS.forEach(k=>save(k));toast("복원했어요");location.hash="home"}catch(err){toast("올바른 백업 데이터가 아니에요")}return}
+ if(a==="renum"){if(!arm(b))return;const c=d.c,dk=c==="meetings"?(x=>(x.date||"9")+(x.time||"")):(x=>x.date||"9");
+  [...S[c]].sort((x,y)=>dk(x).localeCompare(dk(y))||(+x.no||0)-(+y.no||0)).forEach((x,i)=>x.no=i+1);S.meta[c==="meetings"?"mseq":"rseq"]=S[c].length;save(c);save("meta");toast("번호를 1번부터 다시 매겼어요");rerender();return}
  if(a==="kr"){const k=S.goals.list[+d.g].krs[+d.r],v=+d.v;k.p=k.p===v?v-10:v;save("goals");rerender();return}
  if(a==="sample"){sample();return}
 });
 
 function sample(){const t=new Date(),s=n=>iso(add(t,n)),ws=monday(t);
  const p={id:uid(),name:"신규 거래처 제안",client:"OO산업",start:s(-4),end:s(28),status:"doing",goal:"제안서와 견적 제출 후 1차 미팅",log:"",miles:[{t:"제안서 초안",d:s(-1),done:true},{t:"견적 확정",d:s(4),done:false},{t:"고객사 미팅",d:s(13),done:false}],risks:[{r:"단가 확인 지연",a:"구매팀과 일정 사전 협의"}]};
- S.projects.push(p);S.meta.mseq=(S.meta.mseq||0)+1;
+ S.projects.push(p);S.meta.mseq=nextNo(S.meetings);
  const m={id:uid(),no:S.meta.mseq,title:"주간 정기 회의",date:iso(ws),time:"10:00",people:"팀장, 김OO, 이OO",place:"회의실",project:p.id,agenda:"1. 제안서 검토\n2. 견적 일정",notes:"제안서 초안 확인, 사양표 보완 필요",decisions:"견적은 다음 주 화요일까지 발송"};S.meetings.push(m);
  newTask({title:"제안서 초안 작성",project:p.id,due:s(-1),status:"done",doneAt:today()});
  newTask({title:"견적서 검토 및 발송",project:p.id,meeting:m.id,owner:"김OO",due:s(3),status:"doing"});
  newTask({title:"고객사 미팅 자료 준비",project:p.id,meeting:m.id,owner:"나",due:s(8)});
  newTask({title:"출장 신청서 제출",due:today()});
- S.meta.rseq=(S.meta.rseq||0)+1;S.requests.push({id:uid(),no:S.meta.rseq,title:"장비 사양서 송부",who:"김OO 과장 / 영업",date:s(-1),due:s(2),status:"doing",task:""});
+ S.meta.rseq=nextNo(S.requests);S.requests.push({id:uid(),no:S.meta.rseq,title:"장비 사양서 송부",who:"김OO 과장 / 영업",date:s(-1),due:s(2),status:"doing",task:""});
  S.memos.push({id:uid(),title:"제안서 개선 아이디어",body:"- 비교표를 첫 장에\n- 설치 사례 사진 추가",date:today()});
  KEYS.forEach(k=>save(k));toast("예시 데이터를 넣었어요 (지워도 돼요)");rerender()}
 
