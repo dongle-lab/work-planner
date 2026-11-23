@@ -331,7 +331,7 @@ input[type=search]{font-size:17px}
   <button data-act="skin" data-v="navy"><span class="sw" style="background:linear-gradient(135deg,#1f3a5f 50%,#34828c 50%)"></span>네이비</button>
   <button data-act="skin" data-v="sand"><span class="sw" style="background:linear-gradient(135deg,#6b5a48 50%,#b88050 50%)"></span>샌드</button>
   <button data-act="skin" data-v="dark"><span class="sw" style="background:linear-gradient(135deg,#13161c 50%,#5fb3b8 50%)"></span>다크</button></div>
-</header>
+<input type="file" id="ganttfile" accept=".xlsx" hidden aria-label="공정표 엑셀 파일"></header>
 <nav class="rail" id="rail" aria-label="월 바로가기"><a class="num y" href="#month-2026-12" data-ym="2026-12" aria-label="2026년 12월">&#39;26.12</a><a class="num" href="#month-2027-01" data-ym="2027-01" aria-label="2027년 1월">01</a><a class="num" href="#month-2027-02" data-ym="2027-02" aria-label="2027년 2월">02</a><a class="num" href="#month-2027-03" data-ym="2027-03" aria-label="2027년 3월">03</a><a class="num" href="#month-2027-04" data-ym="2027-04" aria-label="2027년 4월">04</a><a class="num" href="#month-2027-05" data-ym="2027-05" aria-label="2027년 5월">05</a><a class="num" href="#month-2027-06" data-ym="2027-06" aria-label="2027년 6월">06</a><a class="num" href="#month-2027-07" data-ym="2027-07" aria-label="2027년 7월">07</a><a class="num" href="#month-2027-08" data-ym="2027-08" aria-label="2027년 8월">08</a><a class="num" href="#month-2027-09" data-ym="2027-09" aria-label="2027년 9월">09</a><a class="num" href="#month-2027-10" data-ym="2027-10" aria-label="2027년 10월">10</a><a class="num" href="#month-2027-11" data-ym="2027-11" aria-label="2027년 11월">11</a><a class="num" href="#month-2027-12" data-ym="2027-12" aria-label="2027년 12월">12</a></nav>
 <main id="app"></main>
 <div class="toast" id="toast" role="status"></div>
@@ -937,17 +937,17 @@ function impApply(){const ev=impEval();let p=imp.target&&byId("projects",imp.tar
  p.rate=imp.g.rate===""?(p.rate??""):+imp.g.rate;if(imp.g.asOf)p.rateAt=imp.g.asOf;
  p.sched=ev.map(x=>({k:x.key,ph:phShort(x.ph),item:x.item,s:x.s,e:x.e,st:x.st,seg:x.seg}));p.schedFile=imp.file;p.schedAt=imp.g.asOf||today();
  p.miles=(p.miles||[]).filter(m=>m.src!=="gantt");                                     // phases now live in the Gantt view
- const before=S.tasks.length;S.tasks=S.tasks.filter(k=>!(k.project===p.id&&k.gk));const moved=before-S.tasks.length;  // old import style → schedule
+ const before=S.tasks.length;S.tasks=S.tasks.filter(k=>!(k.gk&&(k.project===p.id||!k.project||!byId("projects",k.project))));const moved=before-S.tasks.length;  // incl. orphans left by deleted projects  // old import style → schedule
  const keys=new Set(p.sched.map(x=>x.k));S.tasks.forEach(t=>{if(t.project===p.id&&t.sk&&!keys.has(t.sk))t.sk=""});
  save("projects");save("tasks");const id=p.id;imp=null;
  toast(`공정 항목 ${p.sched.length}개를 ${isNew?"새 프로젝트에 넣었어요":"최신 공정표로 바꿨어요"}${moved?` (예전 방식 공정 할 일 ${moved}개 정리)`:""}`);location.hash="project-"+id}
-function ganttPick(pid){const inp=document.createElement("input");inp.type="file";inp.accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
- inp.onchange=async()=>{const f=inp.files[0];if(!f)return;if(!/\.xlsx$/i.test(f.name)){toast("엑셀 .xlsx 파일만 읽을 수 있어요 (.xls는 엑셀에서 .xlsx로 저장해 주세요)");return}
-  try{const g=parseGantt(await readXlsx(f));const name=g.title||f.name.replace(/\.xlsx$/i,"");
-   const match=pid||((S.projects.find(p=>p.name&&(p.name===name||name.includes(p.name)||p.name.includes(name)))||{}).id)||"";
-   imp={g,file:f.name,name,target:match};location.hash="import";rerender()}
-  catch(e){toast("공정표를 읽지 못했어요: "+(e.message||e))}};
- inp.click()}
+async function ganttFile(f,pid){if(!f)return;if(!/\.xlsx$/i.test(f.name)){toast("엑셀 .xlsx 파일만 읽을 수 있어요 (.xls는 엑셀에서 .xlsx로 저장해 주세요)");return}
+ try{const g=parseGantt(await readXlsx(f));const name=g.title||f.name.replace(/\.xlsx$/i,"");
+  const match=pid||((S.projects.find(p=>p.name&&(p.name===name||name.includes(p.name)||p.name.includes(name)))||{}).id)||"";
+  imp={g,file:f.name,name,target:match};location.hash="import";rerender()}
+ catch(e){toast("공정표를 읽지 못했어요: "+(e.message||e))}}
+function ganttPick(pid){const inp=$("#ganttfile");inp.dataset.pid=pid||"";inp.value="";inp.click()}
+document.addEventListener("change",e=>{if(e.target.id==="ganttfile")ganttFile(e.target.files[0],e.target.dataset.pid||"")});
 document.addEventListener("click",e=>{const b=e.target.closest("[data-act]");if(!b)return;const a=b.dataset.act;
  if(a==="ganttpick")ganttPick(b.dataset.pid||"");
  if(a==="impapply"&&imp)impApply();
