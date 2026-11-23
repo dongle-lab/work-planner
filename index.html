@@ -330,6 +330,9 @@ input[type=search]{font-size:17px}
 #lickey{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px}
 @media(min-width:1280px){main{max-width:1316px;padding-right:calc(max(2.4vw,14px) + 76px)}}
 .renum{margin:-4px 0 12px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+
+#syncbtn.need{background:var(--amber,#c98a1b);color:#fff;border-color:transparent;position:relative}
+#syncbtn.need::after{content:"";position:absolute;top:-3px;right:-3px;width:8px;height:8px;border-radius:50%;background:#e5484d;box-shadow:0 0 0 2px var(--bg,#fff)}
 </style>
 <script>new MutationObserver(()=>{for(const c of document.querySelectorAll('.stack td:not([data-l])')){let i=0,p=c;while(p=p.previousElementSibling)i+=p.colSpan;c.dataset.l=c.closest('table').rows[0].cells[i]?.textContent||''}}).observe(document,{childList:true,subtree:true})</script>
 </head>
@@ -424,22 +427,43 @@ async function writeRemote(obj){const body=JSON.stringify(obj);if(!drive.fileId)
  const mp=`--${bd}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(meta)}\r\n--${bd}\r\nContent-Type: application/json\r\n\r\n${body}\r\n--${bd}--`;
  const r=await gfetch(`${GAPI}/upload/drive/v3/files?uploadType=multipart&fields=id`,{method:"POST",headers:{"Content-Type":"multipart/related; boundary="+bd},body:mp});drive.fileId=(await r.json()).id}
 const hm=t=>{const d=new Date(t);return pad(d.getHours())+":"+pad(d.getMinutes())};
+// three-way merge: base = what this device last synced. Items are merged one by one, so edits made on
+// different devices are all kept; only the same item edited on both sides falls back to "newer file wins".
+const J=x=>JSON.stringify(x===undefined?null:x),ARRK=["tasks","projects","meetings","requests","trips","memos"];
+function pick3(l,r,b,hasB,rN){if(J(l)===J(r))return l;
+ if(hasB){if(J(l)===J(b))return r;if(J(r)===J(b))return l}else{if(l===undefined)return r;if(r===undefined)return l}
+ return rN?r:l}
+function mergeObj(l,r,b,rN){const o={},hasB=!!b;b=b||{};
+ for(const k of new Set([...Object.keys(l),...Object.keys(r)])){const v=pick3(l[k],r[k],b[k],hasB,rN);if(v!==undefined)o[k]=v}return o}
+function mergeArr(l,r,b,rN){const m=a=>{const o={};(a||[]).forEach((x,i)=>{o[x&&x.id?x.id:"#"+i]=x});return o};
+ const L=m(l),Rm=m(r),o=mergeObj(L,Rm,b?m(b):null,rN),ord=[...Object.keys(L),...Object.keys(Rm).filter(k=>!(k in L))];
+ return ord.filter(k=>k in o).map(k=>o[k])}
+function merge3(L,R,B,rN){const o={...blank()};
+ for(const k of new Set([...Object.keys(L),...Object.keys(R)])){if(k==="meta")continue;const b=B?B[k]:undefined;
+  o[k]=ARRK.includes(k)?mergeArr(L[k],R[k],B?(b||[]):null,rN):(k==="weeks"||k==="months")?mergeObj(L[k]||{},R[k]||{},B?(b||{}):null,rN):pick3(L[k],R[k],b,!!B,rN)}
+ const lm={...(L.meta||{})},rm={...(R.meta||{})},bm=B?{...(B.meta||{})}:null;[lm,rm,bm].forEach(x=>{if(x){delete x.updated;delete x.rep}});
+ o.meta={...mergeObj(lm,rm,bm,rN),rep:mergeArr((L.meta||{}).rep,(R.meta||{}).rep,B?((B.meta||{}).rep||[]):null,rN),updated:Date.now()};
+ const seen=new Set();o.tasks=o.tasks.filter(t=>{if(!t||!t.rep)return true;const k=t.rep+"|"+t.due;if(seen.has(k))return false;seen.add(k);return true});
+ return o}
+function syncMark(need){const b=$("#syncbtn");if(b)b.classList.toggle("need",!!need)}
+const unsynced=()=>(S.meta.updated||0)>+(ls.get("wp_base")||0);
 async function syncNow(fromClick){
  if(TRIAL){if(fromClick)location.hash="license";return}
  if(!syncReady())return;if(drive.busy){drive.again=true;return}
- if(!fromClick&&!(drive.token&&Date.now()<drive.exp-60000)){setSave("동기화하려면 ‘동기화’를 눌러 주세요");$("#syncbtn").hidden=false;return}
+ if(!fromClick&&!(drive.token&&Date.now()<drive.exp-60000)){const u=unsynced();setSave(u?"⚠ 안 올린 변경 있음":"동기화를 눌러 주세요");syncMark(true);$("#syncbtn").hidden=false;return}
  drive.busy=true;setSave("동기화 중…");
  try{
   const remote=await readRemote(),base=+(ls.get("wp_base")||0),l=S.meta.updated||0,r=remote&&remote.meta?(remote.meta.updated||0):0;
-  const lc=l>base,rc=remote&&r>base;
+  const lc=l>base,rc=remote&&r>base;let B=null;try{B=JSON.parse(ls.get("wp_basedata")||"null")}catch(e){}
   if(!remote){await writeRemote(S)}
   else if(rc&&!lc){S={...blank(),...remote};localSave();rerender()}
   else if(lc&&!rc){await writeRemote(S)}
-  else if(lc&&rc){if(r>l){ls.set("wp2027_conflict",JSON.stringify(S));S={...blank(),...remote};localSave();rerender()}else{ls.set("wp2027_conflict",JSON.stringify(remote));await writeRemote(S)}
-   toast("두 기기에서 동시에 고친 내용이 있어 최신 내용을 남겼어요 (이전 내용은 백업에 보관)")}
-  ls.set("wp_base",String(S.meta.updated||0));drive.on=true;ls.set("wp_drive","1");drive.last=Date.now();ls.set("wp_lastsync_at",String(drive.last));
-  setSave("드라이브 동기화됨 · "+hm(drive.last));
- }catch(e){const m=String(e&&e.message||e);
+  else if(lc&&rc){ls.set("wp2027_conflict",JSON.stringify(S));
+   const m=merge3(S,remote,B,r>l);S={...blank(),...m};localSave();await writeRemote(S);rerender();
+   toast("다른 기기에서 고친 내용과 합쳤어요")}
+  ls.set("wp_base",String(S.meta.updated||0));ls.set("wp_basedata",JSON.stringify(S));drive.on=true;ls.set("wp_drive","1");drive.last=Date.now();ls.set("wp_lastsync_at",String(drive.last));
+  setSave("드라이브 동기화됨 · "+hm(drive.last));syncMark(false);
+ }catch(e){const m=String(e&&e.message||e);syncMark(true);
   if(/popup|access_denied|auth/.test(m)){setSave("동기화하려면 ‘동기화’를 눌러 주세요")}else setSave("동기화 실패 · 기기에는 저장됨");
  }finally{drive.busy=false;$("#syncbtn").hidden=!syncReady();if(drive.again){drive.again=false;setTimeout(()=>syncNow(false),500)}}}
 async function driveOff(){try{if(drive.token&&window.google)google.accounts.oauth2.revoke(drive.token,()=>{})}catch(e){}
@@ -457,7 +481,7 @@ async function boot(){
   if("serviceWorker"in navigator&&location.protocol==="https:")navigator.serviceWorker.register("sw.js").catch(()=>{});
   if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(()=>{});
   $("#syncbtn").hidden=!syncReady();if(syncReady())loadGsi().catch(()=>{});
-  if(TRIAL){$("#syncbtn").hidden=true;setSave("체험 모드")}else if(syncReady()&&drive.on){setSave("동기화하려면 ‘동기화’를 눌러 주세요")}else setSave("이 기기에 저장됨");
+  if(TRIAL){$("#syncbtn").hidden=true;setSave("체험 모드")}else if(syncReady()&&drive.on){syncMark(true);setSave(unsynced()?"⚠ 안 올린 변경 있음":"동기화를 눌러 주세요")}else setSave("이 기기에 저장됨");
   return}
  const c=window.claude;
  const timer=setTimeout(()=>{if(mode!=="cloud")setSave("저장소 연결 대기 중 · 이 기기에 저장")},10000);
@@ -662,7 +686,7 @@ V.backup=()=>`<div class="head"><div><div class="sub">백업 · 동기화</div><
   ${syncReady()?(drive.on?`<p>내 구글 드라이브의 앱 전용 숨김 폴더에 자동으로 저장하고, PC와 휴대폰을 맞춰요.</p><p class="note">마지막 동기화: ${drive.last?esc(new Date(drive.last).toLocaleString("ko-KR")):"아직 없음"}</p><div class="row" style="flex-wrap:wrap"><button class="pri" data-act="sync">지금 동기화</button><button class="danger" data-act="driveoff">동기화 끄기</button></div>`
   :`<p>구글 계정으로 연결하면 PC와 휴대폰에서 같은 내용을 볼 수 있어요. 데이터는 <b>내 구글 드라이브</b>에만 저장되고, 판매자를 포함해 누구도 볼 수 없어요.</p><button class="pri" data-act="sync">구글 드라이브 연결</button>`)
   :`<p class="note">동기화를 쓰려면 앱 설정에 구글 클라이언트 ID가 필요해요. 지금은 이 기기에만 저장돼요.</p>`}
-  ${ls.get("wp2027_conflict")?`<p class="note" style="margin-top:12px">동시 수정으로 덮어쓴 이전 내용이 보관되어 있어요.</p><button data-act="restoreconflict">이전 내용으로 되돌리기</button>`:""}</div>
+  ${ls.get("wp2027_conflict")?`<p class="note" style="margin-top:12px">다른 기기 내용과 합치기 전의 이 기기 내용이 보관되어 있어요.</p><button data-act="restoreconflict">이전 내용으로 되돌리기</button>`:""}</div>
  <div class="card"><h2>앱처럼 설치하기</h2><p><b>아이폰 · 아이패드</b>: 사파리에서 공유 버튼 → <b>홈 화면에 추가</b>. 홈 화면에서 열어야 데이터가 안전하게 유지돼요.</p><p><b>안드로이드</b>: 크롬 메뉴 → <b>앱 설치</b> 또는 홈 화면에 추가.</p><p><b>PC</b>: 크롬 · 엣지 주소창 오른쪽의 <b>설치</b> 아이콘.</p></div></div>`}
  <div class="grid g2"><div class="card"><h2>내보내기</h2><p class="note">모든 데이터를 텍스트로 복사해 메모장 등에 보관하세요.</p><button class="pri" data-act="export">전체 데이터 복사</button><textarea id="exp" hidden style="margin-top:10px;min-height:160px" aria-label="내보낸 데이터"></textarea></div>
  <div class="card"><h2>가져오기</h2><p class="note">복사해 둔 데이터를 붙여 넣으면 현재 데이터를 덮어씁니다.</p><textarea id="imp" placeholder="여기에 붙여 넣기" aria-label="가져올 데이터"></textarea><button style="margin-top:8px" data-act="import">복원하기</button></div></div>
@@ -811,7 +835,7 @@ function repHit(r,d){const dw=(d.getDay()+6)%7;
  const last=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();return d.getDate()===(r.m==="L"?last:Math.min(+r.m,last))}
 function genRepeats(){const R=S.meta&&S.meta.rep;if(!R||!R.length)return;const t=today(),hz=iso(add(new Date(),13));let ch=false;
  R.forEach(r=>{let d=r.last&&r.last>=t?add(P(r.last),1):P(t);
-  for(;iso(d)<=hz;d=add(d,1))if(repHit(r,d)){S.tasks.push({id:uid(),title:r.t,status:"todo",due:iso(d),prio:"mid",project:r.project||"",meeting:"",request:"",owner:"",doneAt:"",created:t,rep:r.id});ch=true}
+  for(;iso(d)<=hz;d=add(d,1))if(repHit(r,d)){{const id="r_"+r.id+"_"+iso(d);if(!S.tasks.some(x=>x.id===id||(x.rep===r.id&&x.due===iso(d))))S.tasks.push({id,title:r.t,status:"todo",due:iso(d),prio:"mid",project:r.project||"",meeting:"",request:"",owner:"",doneAt:"",created:t,rep:r.id})}ch=true}
   if(r.last!==hz){r.last=hz;ch=true}});
  if(ch)localSave()}   // no timestamp bump: generated tasks never win a sync conflict over real edits
 
