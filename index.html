@@ -257,13 +257,27 @@ tr.click{cursor:pointer}tr.click:hover td{background:var(--soft)}
 .te{display:grid;gap:0 14px;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));background:var(--soft);border-radius:8px;padding:2px 12px 10px}
 .te-w{grid-column:1/-1}
 .te .lbl{margin-top:8px}
+/* task overview, repeats, search */
+a.tbtn{display:inline-flex;align-items:center;text-decoration:none}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin:-6px 0 14px}
+.chip2{padding:6px 14px;border-radius:999px;background:var(--tab);color:var(--head);text-decoration:none;font-size:14px}
+.chip2.on{background:var(--accbtn);color:var(--onacc);font-weight:700}
+.late{margin-bottom:14px;border-color:color-mix(in srgb,var(--sun) 45%,var(--boxb))}
+.late h2::before{background:var(--sun)}
+.repf{display:grid;gap:0 14px;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));align-items:end;background:var(--soft);border-radius:8px;padding:4px 12px 12px;margin-top:10px}
+.repf .rw{grid-column:1/-1}.repf .rb{display:flex;justify-content:flex-end}
+.sres{display:flex;flex-direction:column;gap:2px;text-decoration:none;color:var(--ink);padding:2px 0}
+.sres:hover b{color:var(--acct)}
+mark{background:color-mix(in srgb,var(--acc) 30%,transparent);color:inherit;border-radius:3px;padding:0 2px}
+input[type=search]{font-size:17px}
+@media(max-width:560px){.dboxes .dbox.today,.dboxes .dbox.today-in{order:-1}}
 </style>
 <script>new MutationObserver(()=>{for(const c of document.querySelectorAll('.stack td:not([data-l])')){let i=0,p=c;while(p=p.previousElementSibling)i+=p.colSpan;c.dataset.l=c.closest('table').rows[0].cells[i]?.textContent||''}}).observe(document,{childList:true,subtree:true})</script>
 </head>
 <body>
 <header class="tb"><div class="top"><a class="brand" href="#home">WORK PLANNER<b>2027</b></a>
-<nav id="nav" aria-label="섹션"><a href="#home" data-s="home">홈</a><a href="#year" data-s="year">연간</a><a href="#month" data-s="month">월간</a><a href="#week" data-s="week">주간</a><a href="#projects" data-s="projects">프로젝트</a><a href="#meetings" data-s="meetings">회의록</a><a href="#requests" data-s="requests">업무 요청</a><a href="#trips" data-s="trips">출장</a><a href="#memos" data-s="memos">메모</a><a class="bk" href="#backup" data-s="backup">저장 · 백업</a></nav>
-<div class="tools-r"><span class="save" id="save">불러오는 중…</span><button class="tbtn" id="syncbtn" data-act="sync" hidden>동기화</button><button class="tbtn" data-act="skinmenu" aria-haspopup="true" aria-expanded="false" id="skinbtn">테마</button></div></div>
+<nav id="nav" aria-label="섹션"><a href="#home" data-s="home">홈</a><a href="#year" data-s="year">연간</a><a href="#month" data-s="month">월간</a><a href="#week" data-s="week">주간</a><a href="#tasks" data-s="tasks">할 일</a><a href="#projects" data-s="projects">프로젝트</a><a href="#meetings" data-s="meetings">회의록</a><a href="#requests" data-s="requests">업무 요청</a><a href="#trips" data-s="trips">출장</a><a href="#memos" data-s="memos">메모</a><a class="bk" href="#backup" data-s="backup">저장 · 백업</a></nav>
+<div class="tools-r"><span class="save" id="save">불러오는 중…</span><a class="tbtn" href="#search">검색</a><button class="tbtn" id="syncbtn" data-act="sync" hidden>동기화</button><button class="tbtn" data-act="skinmenu" aria-haspopup="true" aria-expanded="false" id="skinbtn">테마</button></div></div>
  <div class="skins" id="skins" hidden><b style="font-size:14px">테마 선택</b>
   <button data-act="skin" data-v="navy"><span class="sw" style="background:linear-gradient(135deg,#1f3a5f 50%,#34828c 50%)"></span>네이비</button>
   <button data-act="skin" data-v="sand"><span class="sw" style="background:linear-gradient(135deg,#6b5a48 50%,#b88050 50%)"></span>샌드</button>
@@ -276,7 +290,8 @@ tr.click{cursor:pointer}tr.click:hover td{background:var(--soft)}
 {
 const NS="wp2027",VARIANT="C",K=s=>NS+"_"+s;
 // ---------- constants ----------
-const HOLI={"2026-12-25":"성탄절","2027-01-01":"신정","2027-02-06":"설 연휴","2027-02-07":"설날","2027-02-08":"설 연휴","2027-02-09":"대체공휴일","2027-03-01":"삼일절","2027-05-01":"노동절","2027-05-03":"대체공휴일","2027-05-05":"어린이날","2027-05-13":"부처님오신날","2027-06-06":"현충일","2027-07-17":"제헌절","2027-07-19":"대체공휴일","2027-08-15":"광복절","2027-08-16":"대체공휴일","2027-09-14":"추석 연휴","2027-09-15":"추석","2027-09-16":"추석 연휴","2027-10-03":"개천절","2027-10-04":"대체공휴일","2027-10-09":"한글날","2027-10-11":"대체공휴일","2027-12-25":"성탄절","2027-12-27":"대체공휴일"};
+const HOLI={"2026-12-25":"성탄절","2027-01-01":"신정","2027-02-06":"설 연휴","2027-02-07":"설날","2027-02-08":"설 연휴","2027-02-09":"대체공휴일","2027-03-01":"삼일절","2027-05-01":"노동절","2027-05-03":"대체공휴일","2027-05-05":"어린이날","2027-05-13":"부처님오신날","2027-06-06":"현충일","2027-07-17":"제헌절","2027-07-19":"대체공휴일","2027-08-15":"광복절","2027-08-16":"대체공휴일","2027-09-14":"추석 연휴","2027-09-15":"추석","2027-09-16":"추석 연휴","2027-10-03":"개천절","2027-10-04":"대체공휴일","2027-10-09":"한글날","2027-10-11":"대체공휴일","2027-12-25":"성탄절","2027-12-27":"대체공휴일",
+ "2028-01-01":"신정","2028-01-26":"설 연휴","2028-01-27":"설날","2028-01-28":"설 연휴","2028-03-01":"삼일절","2028-04-12":"국회의원 선거일","2028-05-01":"노동절","2028-05-02":"부처님오신날","2028-05-05":"어린이날","2028-06-06":"현충일","2028-07-17":"제헌절","2028-08-15":"광복절","2028-10-02":"추석 연휴","2028-10-03":"추석 · 개천절","2028-10-04":"추석 연휴","2028-10-05":"대체공휴일","2028-10-09":"한글날","2028-12-25":"성탄절"};
 const DOW=["월","화","수","목","금","토","일"];
 const ST={todo:"할 일",doing:"진행 중",done:"완료"};
 const PST={plan:"계획",doing:"진행 중",hold:"보류",done:"완료"};
@@ -595,12 +610,15 @@ const SEC={year:["01","연간","YEAR & GOALS","한 해의 흐름과 목표를 �
  trips:["07","출장","BUSINESS TRIP","일정, 경비, 준비물을 한 장에","07_business_travel","일정 · 경비 · 준비물"],
  memos:["08","메모","NOTES","아이디어와 생각을 자유롭게","08_memo","검색되는 노트"]};
 const MEN=["JANUARY","FEBRUARY","MARCH","APRIL","MAY","JUNE","JULY","AUGUST","SEPTEMBER","OCTOBER","NOVEMBER","DECEMBER"];
-const MONTHS13=[[2026,12],...Array.from({length:12},(_,i)=>[2027,i+1])];
+const PY=(()=>{const d=new Date(),y=d.getFullYear()+(d.getMonth()===11?1:0);return Math.max(2027,y)})();
+const MONTHS13=[[PY-1,12],...Array.from({length:12},(_,i)=>[PY,i+1])];
+function buildRail(){const r=$("#rail");if(r)r.innerHTML=MONTHS13.map(([y,m],i)=>`<a class="num${i?"":" y"}" href="#month-${y}-${pad(m)}" data-ym="${y}-${pad(m)}" aria-label="${y}년 ${m}월">${i?pad(m):"'"+String(y).slice(2)+".12"}</a>`).join("");
+ const b=document.querySelector(".brand b");if(b)b.textContent=PY}
 const skinOf=()=>document.documentElement.dataset.skin||"navy";
 const img=(n,sz,cls="")=>`<img class="${cls}" src="i-${skinOf()}-${n}-${sz}.webp" alt="" decoding="async">`;
 function hcards(){return`<div class="hcards">${Object.entries(SEC).map(([k,s])=>`<a class="hcard" href="#${k}"><span class="no num">${s[0]}</span><b>${s[1]}</b><small>${s[5]}</small>${img(s[4],"s")}</a>`).join("")}</div>`}
 function mstrip(){const t=new Date(),cur=t.getFullYear()+"-"+pad(t.getMonth()+1);
- return`<div class="mstrip">${MONTHS13.map(([y,m])=>{const k=y+"-"+pad(m);return`<a class="num ${y===2026?"y ":""}${k===cur?"on":""}" href="#month-${k}" aria-label="${y}년 ${m}월">${y===2026?"'26.12":pad(m)}</a>`}).join("")}</div>`}
+ return`<div class="mstrip">${MONTHS13.map(([y,m])=>{const k=y+"-"+pad(m);return`<a class="num ${y<PY?"y ":""}${k===cur?"on":""}" href="#month-${k}" aria-label="${y}년 ${m}월">${y<PY?"'"+String(y).slice(2)+".12":pad(m)}</a>`}).join("")}</div>`}
 function secHead(k,tools){const s=SEC[k];
  if(VARIANT==="C")return`<section class="hero"><div class="ht"><span class="hno num">${s[0]}</span><i class="hl"></i><h1>${s[1]}</h1><span class="en num">${s[2]}</span><p>${s[3]}</p><div class="hb">${tools||""}</div></div><div class="hi">${img(s[4],"l")}</div></section>`;
  return`<div class="head"><span class="secno num">${s[0]}</span><h1>${s[1]}</h1><span class="sub">${s[3]}</span><div class="tools">${img(s[4],"s","thumb")}${tools||""}</div></div>`}
@@ -619,23 +637,26 @@ V.home=()=>{const t=today(),ws=monday(new Date()),we=iso(add(ws,6)),wsI=iso(ws),
  const focus=open.filter(x=>x.due&&x.due<=t).sort((a,b)=>a.due.localeCompare(b.due));
  const doneW=S.tasks.filter(x=>x.status==="done"&&x.doneAt>=wsI&&x.doneAt<=we).length;
  const weekAll=doneW+open.filter(x=>x.due&&x.due>=wsI&&x.due<=we).length;
+ const nodue=open.filter(x=>!x.due);
  const reqs=S.requests.filter(r=>r.status!=="done").sort((a,b)=>(a.due||"9").localeCompare(b.due||"9")).slice(0,4);
  const fresh=!S.tasks.length&&!S.projects.length&&!S.meetings.length;
  return`<div class="head"><h1>홈</h1><span class="sub">원하는 섹션을 눌러 바로 이동하세요</span><div class="tools"><span class="sub num">${d.getFullYear()}.${pad(d.getMonth()+1)}.${pad(d.getDate())} ${DOW[(d.getDay()+6)%7]}요일</span></div></div>
  ${hcards()}
  <h2 class="st">월간 바로가기</h2>${mstrip()}
  <div class="panel"><div class="ph"><b>오늘의 업무</b>${fresh?`<button data-act="sample" style="margin-left:auto">예시 데이터 불러오기</button>`:""}</div>
- <div class="grid g3">
+ <div class="grid g2">
   <div class="card"><h2>오늘 할 일 · 지연</h2>${focus.length?`<ul class="list">${focus.map(x=>taskLi(x)).join("")}</ul>`:'<p class="empty">오늘 마감인 일이 없어요.</p>'}${addTaskRow(`data-due="${t}"`,"오늘 할 일 추가")}</div>
   <div class="card"><h2>이번 주 진행</h2><div class="big num">${doneW}<span style="font-size:22px;color:var(--mute)"> / ${weekAll}</span></div><p class="note">이번 주 완료한 일 / 이번 주 전체 일</p><div class="bar"><i style="width:${weekAll?Math.round(doneW/weekAll*100):0}%"></i></div><a class="btn pri" style="margin-top:14px" href="#week">${wl.m}월 ${wl.n}주차 열기 ›</a></div>
+  <div class="card"><h2>마감 미정 <span class="pill num">${nodue.length}</span></h2>${nodue.length?`<ul class="list">${nodue.slice(0,6).map(x=>taskLi(x)).join("")}</ul>${nodue.length>6?`<a class="link" href="#tasks-nodue">${nodue.length-6}개 더 보기 ›</a>`:""}`:'<p class="empty">마감일 없이 만든 할 일이 여기에 모여요. 제목을 눌러 마감일을 정해 보세요.</p>'}${addTaskRow("","마감 없이 할 일 추가")}</div>
   <div class="card"><h2>마감 임박 업무 요청</h2>${reqs.length?`<ul class="list">${reqs.map(r=>`<li><span class="t">${esc(r.title||"(내용 없음)")} <span class="pill">${esc(r.who||"")}</span></span>${dueBadge(r.due,false)}</li>`).join("")}</ul>`:'<p class="empty">진행 중인 요청이 없어요.</p>'}<a class="link" href="#requests">업무 요청 전체 보기 ›</a></div>
  </div></div>`};
 
 // ---- ③ year: 12 mini calendars, goals on their own page ----
-V.year=()=>`<div class="head"><h1>2027 연간 캘린더</h1><span class="sub">월 숫자 → 월간 · 날짜 → 주간</span><div class="tools"><a class="btn pri" href="#goals">목표 · 성과 ›</a></div></div>
- <div class="ycal">${Array.from({length:12},(_,i)=>`<div class="card"><div class="ych"><a class="ym" href="#month-2027-${pad(i+1)}">${pad(i+1)}</a><a class="yen" href="#month-2027-${pad(i+1)}">${MEN[i]}</a></div>${ymini(2027,i+1)}</div>`).join("")}</div>`;
+V.year=(arg)=>{const y=+arg||PY;return`<div class="head"><h1>${y} 연간 캘린더</h1><span class="sub">월 숫자 → 월간 · 날짜 → 주간</span><div class="tools"><a class="btn tl" href="#year-${y-1}">‹ ${y-1}</a><a class="btn tl" href="#year-${y+1}">${y+1} ›</a><a class="btn pri" href="#goals">목표 · 성과 ›</a></div></div>
+ <div class="ycal">${Array.from({length:12},(_,i)=>`<div class="card"><div class="ych"><a class="ym" href="#month-${y}-${pad(i+1)}">${pad(i+1)}</a><a class="yen" href="#month-${y}-${pad(i+1)}">${MEN[i]}</a></div>${ymini(y,i+1)}</div>`).join("")}</div>
+ ${Object.keys(HOLI).some(k=>k.startsWith(y+"-"))?"":`<p class="note" style="margin-top:12px">${y}년 공휴일 정보는 아직 들어 있지 않아요.</p>`}`};
 V.goals=()=>{const G=S.goals;
- return`<div class="head"><h1>2027 연간 목표 · 핵심 성과</h1><span class="sub">목표 3개, 목표별 핵심 결과(KR) 3개</span><div class="tools">${img("02_annual_goals","s","thumb")}<a class="btn tl" href="#year">‹ 연간 캘린더</a></div></div>
+ return`<div class="head"><h1>${PY} 연간 목표 · 핵심 성과</h1><span class="sub">목표 3개, 목표별 핵심 결과(KR) 3개</span><div class="tools">${img("02_annual_goals","s","thumb")}<a class="btn tl" href="#year">‹ 연간 캘린더</a></div></div>
  <div class="grid g3">${G.list.map((g,gi)=>`<div class="card gbox"><h2>목표 ${gi+1}</h2><input class="gt" data-k="goals|list.${gi}.title" value="${esc(g.title)}" placeholder="예: 신규 거래처 3곳 확보" aria-label="목표 ${gi+1}">
   ${g.krs.map((k,ki)=>`<div class="kr"><div class="row"><span class="albl">KR${ki+1}</span><input data-k="goals|list.${gi}.krs.${ki}.t" value="${esc(k.t)}" placeholder="측정 가능한 결과" aria-label="목표 ${gi+1} KR${ki+1}"></div>
   <div class="row prog"><span class="note">진행률</span><div class="seg">${Array.from({length:10},(_,j)=>`<button class="${k.p>=(j+1)*10?"on":""}" data-act="kr" data-g="${gi}" data-r="${ki}" data-v="${(j+1)*10}" aria-label="진행률 ${(j+1)*10}%"></button>`).join("")}</div><span class="pv num">${k.p}%</span></div></div>`).join("")}</div>`).join("")}</div>
@@ -668,10 +689,12 @@ V.week=(arg)=>{let ws=monday(arg?P(arg):new Date());const wsI=iso(ws),wl=wlabel(
  const dayHead=(d,i,s)=>{const hol=HOLI[s];return`<div class="dh"><span class="dn ${hol||i===6?"sun":i===5?"sat":""}">${d.getMonth()+1}/${d.getDate()}</span><small>${DOW[i]}요일${hol?` · <span class="hol">${hol}</span>`:""}</small>${s===t?'<span class="pill p-teal">오늘</span>':""}</div>`};
  const tasksOf=s=>{const ts=S.tasks.filter(x=>x.due===s);return ts.length?`<ul class="list">${ts.map(x=>taskLi(x,{noDue:true})).join("")}</ul>`:""};
  const boxes=[0,1,2,3,4].map(i=>{const d=add(ws,i),s=iso(d);return`<div class="card dbox ${s===t?"today":""}">${dayHead(d,i,s)}<span class="lbl albl">일정</span><textarea data-k="weeks|${wsI}.days.${i}" placeholder="예: 10:00 회의" aria-label="${DOW[i]}요일 일정">${esc((W.days||{})[i])}</textarea><div class="band">할 일</div>${tasksOf(s)}${addTaskRow(`data-due="${s}"`,"할 일 추가")}</div>`}).join("");
- const wend=`<div class="card dbox wend">${[5,6].map(i=>{const d=add(ws,i),s=iso(d);return`<div class="half">${dayHead(d,i,s)}<textarea data-k="weeks|${wsI}.days.${i}" aria-label="${DOW[i]}요일 메모" style="min-height:56px">${esc((W.days||{})[i])}</textarea>${tasksOf(s)}${addTaskRow(`data-due="${s}"`,"할 일 추가")}</div>`}).join("")}</div>`;
+ const isNow=wsI===iso(monday(new Date())),late=isNow?S.tasks.filter(x=>x.status!=="done"&&x.due&&x.due<wsI).sort((a,b)=>a.due.localeCompare(b.due)):[];
+ const lateBox=late.length?`<div class="card late"><h2>밀린 일 <span class="pill p-red num">${late.length}</span><small>지난주까지 마감이었는데 끝나지 않은 일</small></h2><ul class="list">${late.slice(0,8).map(x=>taskLi(x)).join("")}</ul>${late.length>8?`<a class="link" href="#tasks-late">${late.length-8}개 더 보기 ›</a>`:""}<div class="row" style="margin-top:10px;justify-content:flex-end"><button class="pri" data-act="carry">모두 오늘로 옮기기</button></div></div>`:"";
+ const wend=`<div class="card dbox wend${[5,6].some(i=>iso(add(ws,i))===t)?" today-in":""}">${[5,6].map(i=>{const d=add(ws,i),s=iso(d);return`<div class="half">${dayHead(d,i,s)}<textarea data-k="weeks|${wsI}.days.${i}" aria-label="${DOW[i]}요일 메모" style="min-height:56px">${esc((W.days||{})[i])}</textarea>${tasksOf(s)}${addTaskRow(`data-due="${s}"`,"할 일 추가")}</div>`}).join("")}</div>`;
  return`<div class="head"><h1>${wl.y}년 ${wl.m}월 ${wl.n}주차</h1><span class="sub num">${wsI.replace(/-/g,".")} – ${pad(we.getMonth()+1)}.${pad(we.getDate())}</span>
  <div class="tools"><a class="btn tl" href="#week-${iso(add(ws,-7))}">‹ 이전 주</a><a class="btn tl" href="#week-${iso(monday(new Date()))}">이번 주</a><a class="btn tl" href="#week-${iso(add(ws,7))}">다음 주 ›</a></div></div>
- <div class="wwrap"><div class="dboxes">${boxes}${wend}</div>
+ ${lateBox}<div class="wwrap"><div class="dboxes">${boxes}${wend}</div>
  <div class="grid" style="align-content:start"><div class="card"><h2>이번 주 Top 3</h2>${[0,1,2].map(i=>`<div class="row top3"><span class="num">${i+1}</span><input data-k="weeks|${wsI}.top.${i}" value="${esc((W.top||[])[i])}" aria-label="Top ${i+1}"></div>`).join("")}</div>
  <div class="report" id="report" aria-label="주간 보고"><header><b>주간 보고</b><span>금요일에 정리 → 그대로 보고서로</span><button class="pri" style="margin-left:auto" data-act="copyrep" data-ws="${wsI}">보고서 복사</button></header>
   <section><h4>완료한 일 <span class="pill num">${r.done.length}</span></h4>${r.done.length?`<ul>${r.done.map(x=>`<li>${esc(x.title)}</li>`).join("")}</ul>`:'<p class="empty">이번 주에 완료한 일이 자동으로 모여요.</p>'}</section>
@@ -683,8 +706,77 @@ V.week=(arg)=>{let ws=monday(arg?P(arg):new Date());const wsI=iso(ws),wl=wlabel(
  </div></div></div>`};
 }
 
+// ---------- 할 일 모아보기 ----------
+let taskProj="",repDraft={t:"",f:"w",d:"0",m:"1",p:""};
+const TF={open:"미완료 전체",late:"지연",today:"오늘",week:"이번 주",nodue:"마감 미정",doing:"진행 중",done:"완료"};
+const FREQ={wd:"평일 매일",w:"매주",m:"매월"};
+function repLabel(r){const p=r.project&&byId("projects",r.project);
+ return`${r.f==="wd"?"평일 매일":r.f==="w"?`매주 ${DOW[+r.d]}요일`:`매월 ${r.m==="L"?"말일":r.m+"일"}`} · ${esc(r.t)}${p?` <span class="pill p-teal">${esc(p.name)}</span>`:""}`}
+V.tasks=(arg)=>{const f=TF[arg]?arg:"open",t=today(),ws=iso(monday(new Date())),we=iso(add(monday(new Date()),6));
+ let ts=S.tasks.filter(x=>!taskProj||x.project===taskProj);
+ const is={late:x=>x.status!=="done"&&x.due&&x.due<t,today:x=>x.status!=="done"&&x.due===t,week:x=>x.status!=="done"&&x.due>=ws&&x.due<=we,
+  nodue:x=>x.status!=="done"&&!x.due,doing:x=>x.status==="doing",done:x=>x.status==="done",open:x=>x.status!=="done"};
+ const byDue=(a,b)=>(a.due||"9").localeCompare(b.due||"9");
+ const list=a=>a.length?`<ul class="list">${a.map(x=>taskLi(x)).join("")}</ul>`:'<p class="empty">해당하는 할 일이 없어요.</p>';
+ let body;
+ if(f==="open"){const o=ts.filter(is.open).sort(byDue),later=o.filter(x=>x.due&&x.due>we),
+  groups=[["지연",o.filter(is.late),"p-red"],["오늘",o.filter(is.today),"p-teal"],["이번 주",o.filter(x=>x.due>t&&x.due<=we),""],["이후",later,""],["마감 미정",o.filter(is.nodue),"p-amber"]];
+  body=groups.filter(g=>g[1].length).map(g=>`<div class="card"><h2>${g[0]} <span class="pill num ${g[2]}">${g[1].length}</span></h2>${list(g[1])}</div>`).join("")||'<div class="card empty">남은 할 일이 없어요.</div>'}
+ else{const a=ts.filter(is[f]).sort(f==="done"?(a,b)=>(b.doneAt||"").localeCompare(a.doneAt||""):byDue);body=`<div class="card"><h2>${TF[f]} <span class="pill num">${a.length}</span></h2>${list(f==="done"?a.slice(0,60):a)}</div>`}
+ const R=S.meta.rep||[];
+ return`<div class="head"><h1>할 일</h1><span class="sub">모든 할 일을 한곳에서 · 제목을 누르면 수정</span><div class="tools"><select id="tfp" aria-label="프로젝트로 거르기" style="width:auto;min-width:160px"><option value="">모든 프로젝트</option>${S.projects.map(p=>`<option value="${p.id}"${p.id===taskProj?" selected":""}>${esc(p.name||"이름 없는 프로젝트")}</option>`).join("")}</select></div></div>
+ <div class="chips">${Object.entries(TF).map(([k,v])=>`<a class="chip2${k===f?" on":""}" href="#tasks-${k}">${v}</a>`).join("")}</div>
+ <div class="card" style="margin-bottom:14px">${addTaskRow(taskProj?`data-project="${taskProj}"`:"","할 일 추가 (마감일은 제목을 눌러 지정)")}</div>
+ <div class="grid">${body}</div>
+ <div class="card rep" style="margin-top:18px"><h2>반복 업무 <small>정해 둔 주기마다 할 일이 2주 앞까지 자동으로 생겨요</small></h2>
+  ${R.length?`<ul class="list">${R.map(r=>`<li><span class="t">${repLabel(r)}</span><button class="ghost" data-act="delrep" data-id="${r.id}" aria-label="반복 업무 삭제">✕</button></li>`).join("")}</ul>`:'<p class="empty">예: 매주 월요일 주간 회의 자료 준비, 매월 말일 경비 정산</p>'}
+  <div class="repf"><div class="rw"><label class="lbl" for="rt">할 일</label><input id="rt" value="${esc(repDraft.t)}" placeholder="주간 회의 자료 준비"></div>
+  <div><label class="lbl" for="rf">주기</label><select id="rf">${opts(FREQ,repDraft.f)}</select></div>
+  ${repDraft.f==="w"?`<div><label class="lbl" for="rd">요일</label><select id="rd">${DOW.map((d,i)=>`<option value="${i}"${String(i)===repDraft.d?" selected":""}>${d}요일</option>`).join("")}</select></div>`:""}
+  ${repDraft.f==="m"?`<div><label class="lbl" for="rm">날짜</label><select id="rm">${[...Array.from({length:28},(_,i)=>String(i+1)),"L"].map(v=>`<option value="${v}"${v===repDraft.m?" selected":""}>${v==="L"?"말일":v+"일"}</option>`).join("")}</select></div>`:""}
+  <div><label class="lbl" for="rp">프로젝트</label><select id="rp">${projOpts(repDraft.p)}</select></div>
+  <div class="rb"><button class="pri" data-act="addrep">반복 추가</button></div></div></div>`};
+function repHit(r,d){const dw=(d.getDay()+6)%7;
+ if(r.f==="wd")return dw<5&&!HOLI[iso(d)];
+ if(r.f==="w")return dw===+r.d;
+ const last=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();return d.getDate()===(r.m==="L"?last:Math.min(+r.m,last))}
+function genRepeats(){const R=S.meta&&S.meta.rep;if(!R||!R.length)return;const t=today(),hz=iso(add(new Date(),13));let ch=false;
+ R.forEach(r=>{let d=r.last&&r.last>=t?add(P(r.last),1):P(t);
+  for(;iso(d)<=hz;d=add(d,1))if(repHit(r,d)){S.tasks.push({id:uid(),title:r.t,status:"todo",due:iso(d),prio:"mid",project:r.project||"",meeting:"",request:"",owner:"",doneAt:"",created:t,rep:r.id});ch=true}
+  if(r.last!==hz){r.last=hz;ch=true}});
+ if(ch)localSave()}   // no timestamp bump: generated tasks never win a sync conflict over real edits
+
+// ---------- 전체 검색 ----------
+let searchQ="";
+const SRC=[["tasks","할 일",x=>x.due?`#week-${iso(monday(P(x.due)))}`:"#tasks-nodue",x=>x.title],["projects","프로젝트",x=>`#project-${x.id}`,x=>x.name],["meetings","회의록",x=>`#meeting-${x.id}`,x=>x.title||"회의"],
+ ["requests","업무 요청",()=>"#requests",x=>x.title],["trips","출장",x=>`#trip-${x.id}`,x=>x.title||x.dest],["memos","메모",x=>`#memo-${x.id}`,x=>x.title||"제목 없음"]];
+function strs(o,out=[]){if(typeof o==="string"){if(o)out.push(o)}else if(Array.isArray(o))o.forEach(v=>strs(v,out));else if(o&&typeof o==="object")for(const[k,v]of Object.entries(o))if(!/^(id|project|meeting|request|task|rep|status|created|doneAt|prio)$/.test(k))strs(v,out);return out}
+function searchHTML(q){q=q.trim().toLowerCase();if(!q)return'<p class="empty">찾을 단어를 입력하세요. 할 일, 프로젝트, 회의록, 업무 요청, 출장, 메모를 모두 찾아요.</p>';
+ let n=0;const html=SRC.map(([c,label,href,name])=>{const hits=S[c].map(x=>{const hit=strs(x).find(v=>v.toLowerCase().includes(q));return hit?[x,hit]:null}).filter(Boolean);n+=hits.length;if(!hits.length)return"";
+  return`<div class="card"><h2>${label} <span class="pill num">${hits.length}</span></h2><ul class="list">${hits.slice(0,30).map(([x,h])=>{const i=h.toLowerCase().indexOf(q),a=Math.max(0,i-24),sn=(a?"…":"")+esc(h.slice(a,i))+"<mark>"+esc(h.slice(i,i+q.length))+"</mark>"+esc(h.slice(i+q.length,i+q.length+40))+(i+q.length+40<h.length?"…":"");
+   return`<li><a class="sres" href="${href(x)}"><b>${esc(name(x)||"(제목 없음)")}</b><span class="note">${sn}</span></a></li>`}).join("")}</ul></div>`}).join("");
+ return n?html:`<p class="empty">'${esc(q)}'에 해당하는 내용이 없어요.</p>`}
+V.search=()=>`<div class="head"><h1>검색</h1><span class="sub">플래너 전체에서 찾기</span></div>
+ <div class="card" style="margin-bottom:14px"><input id="gq" type="search" value="${esc(searchQ)}" placeholder="예: 견적, 김과장, 사양표" aria-label="플래너 전체 검색" autocomplete="off"></div><div class="grid" id="sres">${searchHTML(searchQ)}</div>`;
+
+document.addEventListener("input",e=>{const el=e.target;
+ if(el.id==="gq"){searchQ=el.value;$("#sres").innerHTML=searchHTML(searchQ)}
+ if(el.id==="rt")repDraft.t=el.value});
+document.addEventListener("change",e=>{const el=e.target;
+ if(el.id==="tfp"){taskProj=el.value;rerender()}
+ if(el.id==="rf"){repDraft.f=el.value;rerender()}
+ if(el.id==="rd")repDraft.d=el.value;if(el.id==="rm")repDraft.m=el.value;if(el.id==="rp")repDraft.p=el.value});
+document.addEventListener("click",e=>{const b=e.target.closest("[data-act]");if(!b)return;const a=b.dataset.act;
+ if(a==="carry"){const t=today(),ws=iso(monday(new Date()));let n=0;S.tasks.forEach(x=>{if(x.status!=="done"&&x.due&&x.due<ws){x.due=t;n++}});if(n){save("tasks");toast(`밀린 일 ${n}개를 오늘로 옮겼어요`);rerender()}}
+ if(a==="addrep"){const t=repDraft.t.trim();if(!t){toast("반복할 할 일을 입력해 주세요");const i=$("#rt");if(i)i.focus();return}
+  S.meta.rep=S.meta.rep||[];S.meta.rep.push({id:uid(),t,f:repDraft.f,d:repDraft.d,m:repDraft.m,project:repDraft.p,last:""});repDraft.t="";
+  genRepeats();save("meta");save("tasks");toast("반복 업무를 추가했어요");rerender()}
+ if(a==="delrep"){if(!arm(b))return;const id=b.dataset.id,t=today();S.meta.rep=(S.meta.rep||[]).filter(r=>r.id!==id);
+  const before=S.tasks.length;S.tasks=S.tasks.filter(x=>!(x.rep===id&&x.status!=="done"&&x.due>t));save("meta");save("tasks");
+  toast(`반복 업무를 지웠어요${before-S.tasks.length?` (앞으로 생길 할 일 ${before-S.tasks.length}개 함께 삭제)`:""}`);rerender()}});
+
 // ---------- router ----------
-function route(){const h=(location.hash||"#home").slice(1);let [sec,...rest]=h.split("-");const arg=rest.join("-");
+function route(){if(!route.rb){buildRail();route.rb=1}genRepeats();const h=(location.hash||"#home").slice(1);let [sec,...rest]=h.split("-");const arg=rest.join("-");
  const map={project:"projects",meeting:"meetings",trip:"trips",memo:"memos",goals:"year"};const navSec=map[sec]||sec;
  const fn=V[sec]||V.home;
  document.querySelectorAll("#nav a").forEach(a=>a.classList.toggle("on",a.dataset.s===(V[sec]?navSec:"home")));
